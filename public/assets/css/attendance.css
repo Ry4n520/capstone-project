@@ -1,0 +1,403 @@
+/**
+ * Attendance Page Styles
+ */
+
+/* Attendance Container - Left/Right Layout */
+.attendance-container {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+/* Left Side: Semesters Card */
+.semesters-card {
+    overflow: hidden;
+}
+
+/* Right Sidebar */
+.right-sidebar {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Attendance Stats - Right Sidebar */
+.attendance-stats-right {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem;
+    gap: 1.5rem;
+}
+
+.stat-label {
+    color: #718096;
+    font-size: 0.95rem;
+    margin-bottom: 0.5rem;
+    text-align: center;
+}
+
+.attendance-percentage {
+    font-size: 2.5rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 1rem;
+}
+
+.attendance-percentage.high {
+    color: #38a169;
+    background: none;
+    -webkit-text-fill-color: currentColor;
+}
+
+.attendance-percentage.low {
+    color: #e53e3e;
+    background: none;
+    -webkit-text-fill-color: currentColor;
+}
+
+.btn-sign-attendance {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 0.875rem 1.75rem;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    width: 100%;
+}
+
+.btn-sign-attendance:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+/* Semester Sections */
+.semester-section {
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.semester-section:last-child {
+    border-bottom: none;
+}
+
+.semester-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.5rem;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    user-select: none;
+}
+
+.semester-header:hover {
+    background-color: #f7fafc;
+}
+
+.semester-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.semester-name {
+    font-weight: 600;
+    font-size: 1.05rem;
+    color: #2d3748;
+}
+
+.semester-percentage {
+    font-weight: 700;
+    font-size: 1rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 6px;
+}
+
+.semester-percentage.high {
+    color: #38a169;
+    background: rgba(56, 161, 105, 0.1);
+}
+
+.semester-percentage.low {
+    color: #e53e3e;
+    background: rgba(229, 62, 62, 0.1);
+}
+
+.chevron-icon {
+    transition: transform 0.3s ease;
+    color: #718096;
+}
+
+.semester-header.active .chevron-icon {
+    transform: rotate(180deg);
+}
+
+.semester-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+    background-color: #f7fafc;
+}
+
+.semester-content.show {
+    max-height: 1000px;
+}
+
+/* Subject Items */
+.subject-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.subject-item:last-child {
+    border-bottom: none;
+}
+
+.subject-name {
+    font-weight: 500;
+    color: #2d3748;
+    font-size: 0.95rem;
+}
+
+.subject-attendance {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    color: #718096;
+    font-size: 0.9rem;
+}
+
+.subject-percentage {
+    font-weight: 700;
+    font-size: 0.9rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+}
+
+.subject-percentage.high {
+    color: #38a169;
+    background: rgba(56, 161, 105, 0.1);
+}
+
+.subject-percentage.low {
+    color: #e53e3e;
+    background: rgba(229, 62, 62, 0.1);
+}
+
+/* Attendance Modal */
+.attendance-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2000;
+}
+
+.attendance-modal.show {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+}
+
+.modal-content {
+    position: relative;
+    background: white;
+    border-radius: 16px;
+    width: 90%;
+    max-width: 400px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    border-bottom: 1px solid #e2e8f0;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 16px 16px 0 0;
+    color: white;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.75rem;
+    cursor: pointer;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.3s ease;
+    line-height: 1;
+}
+
+.modal-close:hover {
+    opacity: 0.8;
+}
+
+.modal-body {
+    padding: 2rem 1.5rem;
+}
+
+/* Code Inputs */
+.code-inputs {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    margin-bottom: 2rem;
+}
+
+.code-input {
+    width: 70px;
+    height: 70px;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    text-align: center;
+    font-size: 2rem;
+    font-weight: 600;
+    color: #2d3748;
+    transition: all 0.3s ease;
+    background: #f7fafc;
+}
+
+.code-input:focus {
+    outline: none;
+    border-color: #667eea;
+    background: white;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.btn-enter-code {
+    width: 100%;
+    background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+    color: white;
+    border: none;
+    padding: 1rem;
+    border-radius: 8px;
+    font-size: 1.05rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(72, 187, 120, 0.3);
+}
+
+.btn-enter-code:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(72, 187, 120, 0.4);
+}
+
+/* Responsive Design */
+@media screen and (max-width: 1024px) {
+    .attendance-container {
+        grid-template-columns: 1fr;
+    }
+
+    .right-sidebar {
+        grid-row: 1;
+    }
+
+    .semesters-card {
+        grid-row: 2;
+    }
+}
+
+@media screen and (max-width: 768px) {
+    .attendance-stats-right {
+        padding: 1.5rem;
+    }
+
+    .btn-sign-attendance {
+        width: 100%;
+    }
+
+    .attendance-percentage {
+        font-size: 2rem;
+    }
+
+    .code-input {
+        width: 60px;
+        height: 60px;
+        font-size: 1.5rem;
+    }
+
+    .code-inputs {
+        gap: 0.75rem;
+    }
+}
+
+@media screen and (max-width: 480px) {
+    .semester-header {
+        padding: 1rem;
+    }
+
+    .subject-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+        padding: 1rem;
+    }
+
+    .subject-attendance {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+    }
+
+    .code-input {
+        width: 50px;
+        height: 50px;
+        font-size: 1.25rem;
+    }
+
+    .modal-content {
+        width: 95%;
+    }
+
+    .attendance-container {
+        gap: 1rem;
+    }
+}

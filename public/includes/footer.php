@@ -1,0 +1,1 @@
+<!-- this allows for footer to be included in multiple pages without rewriting code -->
