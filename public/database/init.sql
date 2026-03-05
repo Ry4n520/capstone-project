@@ -1,124 +1,177 @@
-/* Initializes database schema for the capstone app. */
+/* Smart Campus Management System - Database Schema */
+/* Overhauled design with Course Sections, Class Sessions, and Schedule Requests */
 
 CREATE DATABASE IF NOT EXISTS capstone_db;
 USE capstone_db;
 
--- Roles
+-- ===========================================
+-- 1. Role Table
+-- Stores system roles (Admin, Lecturer, Student)
+-- ===========================================
 CREATE TABLE IF NOT EXISTS roles (
     role_id INT AUTO_INCREMENT PRIMARY KEY,
     role_name VARCHAR(50) NOT NULL UNIQUE,
     role_description VARCHAR(255)
 );
 
--- Users
+-- ===========================================
+-- 2. User Table
+-- Stores all system users
+-- ===========================================
 CREATE TABLE IF NOT EXISTS users (
     user_id INT AUTO_INCREMENT PRIMARY KEY,
+    role_id INT NOT NULL,
     name VARCHAR(100) NOT NULL,
     gender VARCHAR(20),
     phone VARCHAR(30),
-    email VARCHAR(120) UNIQUE,
+    email VARCHAR(120) UNIQUE NOT NULL,
     profile_image VARCHAR(255),
-    password VARCHAR(255) NOT NULL,
-    role_id INT NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
     date_joined DATETIME DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_users_role
         FOREIGN KEY (role_id) REFERENCES roles(role_id)
 );
 
--- Students
-CREATE TABLE IF NOT EXISTS students (
-    student_id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    intake VARCHAR(50),
-    programme VARCHAR(100),
-    CONSTRAINT fk_students_user
-        FOREIGN KEY (user_id) REFERENCES users(user_id)
-);
-
--- Lecturers
-CREATE TABLE IF NOT EXISTS lecturers (
-    lecturer_id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    department VARCHAR(100),
-    office_location VARCHAR(100),
-    CONSTRAINT fk_lecturers_user
-        FOREIGN KEY (user_id) REFERENCES users(user_id)
-);
-
--- Courses
+-- ===========================================
+-- 3. Course Table
+-- Stores available courses
+-- ===========================================
 CREATE TABLE IF NOT EXISTS courses (
     course_id INT AUTO_INCREMENT PRIMARY KEY,
     course_name VARCHAR(150) NOT NULL,
     credit_hour INT NOT NULL
 );
 
--- Classrooms
+-- ===========================================
+-- 4. Course_Section Table
+-- Represents course groups taught by lecturers
+-- Example: Group 1, Group 2
+-- ===========================================
+CREATE TABLE IF NOT EXISTS course_sections (
+    section_id INT AUTO_INCREMENT PRIMARY KEY,
+    course_id INT NOT NULL,
+    lecturer_id INT NOT NULL,
+    section_code VARCHAR(50),
+    semester VARCHAR(20),
+    year INT,
+    CONSTRAINT fk_course_sections_course
+        FOREIGN KEY (course_id) REFERENCES courses(course_id),
+    CONSTRAINT fk_course_sections_lecturer
+        FOREIGN KEY (lecturer_id) REFERENCES users(user_id)
+);
+
+-- ===========================================
+-- 5. Enrollment Table
+-- Stores student enrollment into course sections
+-- ===========================================
+CREATE TABLE IF NOT EXISTS enrollments (
+    enrollment_id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id INT NOT NULL,
+    section_id INT NOT NULL,
+    enrollment_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    status VARCHAR(30) DEFAULT 'active',
+    CONSTRAINT fk_enrollments_student
+        FOREIGN KEY (student_id) REFERENCES users(user_id),
+    CONSTRAINT fk_enrollments_section
+        FOREIGN KEY (section_id) REFERENCES course_sections(section_id)
+);
+
+-- ===========================================
+-- 6. Classroom Table
+-- Stores classroom information
+-- ===========================================
 CREATE TABLE IF NOT EXISTS classrooms (
     room_id INT AUTO_INCREMENT PRIMARY KEY,
     room_name VARCHAR(100) NOT NULL,
     building VARCHAR(100),
     capacity INT,
-    type VARCHAR(50)
+    room_type VARCHAR(50)
 );
 
--- Timetable
+-- ===========================================
+-- 7. Schedule_Request Table
+-- Stores classroom schedule requests by lecturers
+-- ===========================================
+CREATE TABLE IF NOT EXISTS schedule_requests (
+    request_id INT AUTO_INCREMENT PRIMARY KEY,
+    section_id INT NOT NULL,
+    room_id INT NOT NULL,
+    day_of_week VARCHAR(20) NOT NULL,
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
+    status VARCHAR(30) DEFAULT 'pending',
+    requested_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_schedule_requests_section
+        FOREIGN KEY (section_id) REFERENCES course_sections(section_id),
+    CONSTRAINT fk_schedule_requests_room
+        FOREIGN KEY (room_id) REFERENCES classrooms(room_id)
+);
+
+-- ===========================================
+-- 8. Timetable Table
+-- Stores approved class schedules
+-- ===========================================
 CREATE TABLE IF NOT EXISTS timetables (
     timetable_id INT AUTO_INCREMENT PRIMARY KEY,
-    course_id INT NOT NULL,
-    user_id INT NOT NULL,
+    section_id INT NOT NULL,
     room_id INT NOT NULL,
     day_of_week VARCHAR(20) NOT NULL,
     start_time TIME NOT NULL,
     end_time TIME NOT NULL,
     session_code VARCHAR(50),
-    type VARCHAR(50),
-    CONSTRAINT fk_timetables_course
-        FOREIGN KEY (course_id) REFERENCES courses(course_id),
-    CONSTRAINT fk_timetables_user
-        FOREIGN KEY (user_id) REFERENCES users(user_id),
+    CONSTRAINT fk_timetables_section
+        FOREIGN KEY (section_id) REFERENCES course_sections(section_id),
     CONSTRAINT fk_timetables_room
         FOREIGN KEY (room_id) REFERENCES classrooms(room_id)
 );
 
--- Enrollment
-CREATE TABLE IF NOT EXISTS enrollments (
-    enrollment_id INT AUTO_INCREMENT PRIMARY KEY,
-    student_id INT NOT NULL,
-    course_id INT NOT NULL,
-    semester VARCHAR(20),
-    year INT,
-    CONSTRAINT fk_enrollments_student
-        FOREIGN KEY (student_id) REFERENCES students(student_id),
-    CONSTRAINT fk_enrollments_course
-        FOREIGN KEY (course_id) REFERENCES courses(course_id)
-);
-
--- Attendance
-CREATE TABLE IF NOT EXISTS attendance (
-    attendance_id INT AUTO_INCREMENT PRIMARY KEY,
-    enrollment_id INT NOT NULL,
+-- ===========================================
+-- 9. Class_Session Table
+-- Represents actual class occurrences on specific dates
+-- ===========================================
+CREATE TABLE IF NOT EXISTS class_sessions (
+    session_id INT AUTO_INCREMENT PRIMARY KEY,
     timetable_id INT NOT NULL,
-    date DATE NOT NULL,
-    status VARCHAR(30) NOT NULL,
-    mark_method VARCHAR(50),
-    marked_at DATETIME,
-    type VARCHAR(50),
-    CONSTRAINT fk_attendance_enrollment
-        FOREIGN KEY (enrollment_id) REFERENCES enrollments(enrollment_id),
-    CONSTRAINT fk_attendance_timetable
+    session_date DATE NOT NULL,
+    attendance_code VARCHAR(10),
+    code_expiry DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_class_sessions_timetable
         FOREIGN KEY (timetable_id) REFERENCES timetables(timetable_id)
 );
 
--- Facilities
+-- ===========================================
+-- 10. Attendance Table
+-- Stores student attendance records
+-- ===========================================
+CREATE TABLE IF NOT EXISTS attendance (
+    attendance_id INT AUTO_INCREMENT PRIMARY KEY,
+    enrollment_id INT NOT NULL,
+    session_id INT NOT NULL,
+    status VARCHAR(30) NOT NULL,
+    marked_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_attendance_enrollment
+        FOREIGN KEY (enrollment_id) REFERENCES enrollments(enrollment_id),
+    CONSTRAINT fk_attendance_session
+        FOREIGN KEY (session_id) REFERENCES class_sessions(session_id)
+);
+
+-- ===========================================
+-- 11. Facility Table
+-- Stores campus facilities
+-- ===========================================
 CREATE TABLE IF NOT EXISTS facilities (
     facility_id INT AUTO_INCREMENT PRIMARY KEY,
     facility_name VARCHAR(120) NOT NULL,
     location VARCHAR(120),
-    description VARCHAR(255)
+    facility_type VARCHAR(50)
 );
 
--- Facility booking
-CREATE TABLE IF NOT EXISTS facility_bookings (
+-- ===========================================
+-- 12. Booking Table
+-- Stores facility reservations
+-- ===========================================
+CREATE TABLE IF NOT EXISTS bookings (
     booking_id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
     facility_id INT NOT NULL,
@@ -126,35 +179,42 @@ CREATE TABLE IF NOT EXISTS facility_bookings (
     start_time TIME NOT NULL,
     end_time TIME NOT NULL,
     booking_status VARCHAR(30) NOT NULL,
-    CONSTRAINT fk_facility_bookings_user
+    CONSTRAINT fk_bookings_user
         FOREIGN KEY (user_id) REFERENCES users(user_id),
-    CONSTRAINT fk_facility_bookings_facility
+    CONSTRAINT fk_bookings_facility
         FOREIGN KEY (facility_id) REFERENCES facilities(facility_id)
 );
 
--- Announcements
+-- ===========================================
+-- 13. Announcement Table
+-- Stores system announcements
+-- ===========================================
 CREATE TABLE IF NOT EXISTS announcements (
     announcement_id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
     title VARCHAR(150) NOT NULL,
     content TEXT NOT NULL,
     created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-    target_role VARCHAR(50),
+    target_role_id INT,
     CONSTRAINT fk_announcements_user
-        FOREIGN KEY (user_id) REFERENCES users(user_id)
+        FOREIGN KEY (user_id) REFERENCES users(user_id),
+    CONSTRAINT fk_announcements_role
+        FOREIGN KEY (target_role_id) REFERENCES roles(role_id)
 );
 
--- Seed roles and test users for authentication testing
--- Password for all test users: password123
+-- ===========================================
+-- Seed Data
+-- ===========================================
 
+-- Insert default roles
 INSERT INTO roles (role_name, role_description) VALUES
     ('admin', 'System administrator'),
     ('student', 'Student user'),
     ('staff', 'Staff/Lecturer user')
 ON DUPLICATE KEY UPDATE role_description = VALUES(role_description);
 
--- Test users - Password: password123
-INSERT INTO users (name, email, password, role_id)
+-- Insert test users - Password: password123
+INSERT INTO users (name, email, password_hash, role_id)
 VALUES 
     ('John Student', 'student@campus.edu', 'password123', (SELECT role_id FROM roles WHERE role_name = 'student')),
     ('Prof. Smith', 'staff@campus.edu', 'password123', (SELECT role_id FROM roles WHERE role_name = 'staff')),

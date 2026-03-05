@@ -37,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Prepared statement to prevent SQL injection
             // Join with roles table to get role_name
-            $query = "SELECT u.user_id, u.name, u.email, u.password, r.role_name 
+            $query = "SELECT u.*, r.role_name 
                       FROM users u 
                       JOIN roles r ON u.role_id = r.role_id 
                       WHERE u.email = ?";
@@ -46,12 +46,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $user = $stmt->fetch();
 
             // Check if user exists and password is correct
-            // Using plain text password comparison (change to password_verify for production)
-            if ($user && $password === $user['password']) {
+            $is_valid_password = false;
+            if ($user) {
+                $stored_password = $user['password_hash'] ?? $user['password'] ?? '';
+                $is_valid_password = password_verify($password, $stored_password) || hash_equals((string)$stored_password, (string)$password);
+            }
+
+            if ($is_valid_password) {
                 // Login successful - set session variables
                 $_SESSION['user_id'] = $user['user_id'];
                 $_SESSION['role'] = $user['role_name'];
                 $_SESSION['name'] = $user['name'];
+
+                // Upgrade legacy plain-text password to bcrypt hash after successful login
+                if (isset($stored_password) && !password_get_info($stored_password)['algo'] && array_key_exists('password_hash', $user)) {
+                    $new_hash = password_hash($password, PASSWORD_BCRYPT);
+                    $update_stmt = $pdo->prepare("UPDATE users SET password_hash = ? WHERE user_id = ?");
+                    $update_stmt->execute([$new_hash, $user['user_id']]);
+                }
                 
                 // Redirect to homepage
                 header('Location: /homepage.php');
