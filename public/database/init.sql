@@ -115,6 +115,8 @@ CREATE TABLE IF NOT EXISTS timetables (
     timetable_id INT AUTO_INCREMENT PRIMARY KEY,
     section_id INT NOT NULL,
     room_id INT NOT NULL,
+    month VARCHAR(20) NOT NULL,
+    week VARCHAR(50) NOT NULL,
     day_of_week VARCHAR(20) NOT NULL,
     start_time TIME NOT NULL,
     end_time TIME NOT NULL,
@@ -214,9 +216,112 @@ INSERT INTO roles (role_name, role_description) VALUES
 ON DUPLICATE KEY UPDATE role_description = VALUES(role_description);
 
 -- Insert test users - Password: password123
-INSERT INTO users (name, email, password_hash, role_id)
+INSERT INTO users (name, email, password_hash, role_id, gender, phone)
 VALUES 
-    ('John Student', 'student@campus.edu', 'password123', (SELECT role_id FROM roles WHERE role_name = 'student')),
-    ('Prof. Smith', 'staff@campus.edu', 'password123', (SELECT role_id FROM roles WHERE role_name = 'staff')),
-    ('Admin User', 'admin@campus.edu', 'password123', (SELECT role_id FROM roles WHERE role_name = 'admin'))
+    ('John Student', 'john.student@campus.edu', 'password123', (SELECT role_id FROM roles WHERE role_name = 'student'), 'Male', '0123456789'),
+    ('Sarah Osman', 'sarah.osman@campus.edu', 'password123', (SELECT role_id FROM roles WHERE role_name = 'student'), 'Female', '0123456790'),
+    ('Ali Rahman', 'ali.rahman@campus.edu', 'password123', (SELECT role_id FROM roles WHERE role_name = 'student'), 'Male', '0123456791'),
+    ('Maya Sern', 'maya.sern@campus.edu', 'password123', (SELECT role_id FROM roles WHERE role_name = 'student'), 'Female', '0123456792'),
+    ('Prof. Smith', 'smith@campus.edu', 'password123', (SELECT role_id FROM roles WHERE role_name = 'staff'), 'Male', '0187654321'),
+    ('Dr. Lim', 'lim@campus.edu', 'password123', (SELECT role_id FROM roles WHERE role_name = 'staff'), 'Male', '0187654322'),
+    ('Ms. Farah', 'farah@campus.edu', 'password123', (SELECT role_id FROM roles WHERE role_name = 'staff'), 'Female', '0187654323'),
+    ('Mr. Kumar', 'kumar@campus.edu', 'password123', (SELECT role_id FROM roles WHERE role_name = 'staff'), 'Male', '0187654324'),
+    ('Admin User', 'admin@campus.edu', 'password123', (SELECT role_id FROM roles WHERE role_name = 'admin'), 'Male', '0198765432')
 ON DUPLICATE KEY UPDATE email = VALUES(email);
+
+-- Insert courses
+INSERT INTO courses (course_name, credit_hour) VALUES
+    ('Data Structures', 3),
+    ('Database Systems', 3),
+    ('Software Engineering', 3),
+    ('Computer Networks', 3),
+    ('Web Development', 3),
+    ('Algorithms', 3),
+    ('Operating Systems', 3),
+    ('Object-Oriented Programming', 3)
+ON DUPLICATE KEY UPDATE credit_hour = VALUES(credit_hour);
+
+-- Insert classrooms
+INSERT INTO classrooms (room_name, building, capacity, room_type) VALUES
+    ('Block A-101', 'Block A', 40, 'Lecture Hall'),
+    ('Block A-102', 'Block A', 40, 'Lecture Hall'),
+    ('Block B-203', 'Block B', 35, 'Seminar Room'),
+    ('Block B-204', 'Block B', 35, 'Seminar Room'),
+    ('Lab C-105', 'Block C', 30, 'Computer Lab'),
+    ('Lab C-106', 'Block C', 30, 'Computer Lab'),
+    ('Room A-301', 'Block A', 50, 'Lecture Hall'),
+    ('Block D-110', 'Block D', 45, 'Lecture Hall')
+ON DUPLICATE KEY UPDATE capacity = VALUES(capacity);
+
+-- Insert course sections (lecturers teaching different groups of courses)
+INSERT INTO course_sections (course_id, lecturer_id, section_code, semester, year) VALUES
+    -- Data Structures (CSC210) - Group 1 & 2
+    (1, (SELECT user_id FROM users WHERE email = 'lim@campus.edu'), 'CSC210-G1', '2', 2026),
+    (1, (SELECT user_id FROM users WHERE email = 'smith@campus.edu'), 'CSC210-G2', '2', 2026),
+    -- Database Systems (CSC220) - Group 1 & 2
+    (2, (SELECT user_id FROM users WHERE email = 'farah@campus.edu'), 'CSC220-G1', '2', 2026),
+    (2, (SELECT user_id FROM users WHERE email = 'kumar@campus.edu'), 'CSC220-G2', '2', 2026),
+    -- Software Engineering (CSC230)
+    (3, (SELECT user_id FROM users WHERE email = 'smith@campus.edu'), 'CSC230-G1', '2', 2026),
+    -- Computer Networks (CSC240)
+    (4, (SELECT user_id FROM users WHERE email = 'lim@campus.edu'), 'CSC240-G1', '2', 2026),
+    -- Web Development (CSC250)
+    (5, (SELECT user_id FROM users WHERE email = 'farah@campus.edu'), 'CSC250-G1', '2', 2026),
+    -- Algorithms (CSC260)
+    (6, (SELECT user_id FROM users WHERE email = 'kumar@campus.edu'), 'CSC260-G1', '2', 2026),
+    -- OOP (CSC270)
+    (8, (SELECT user_id FROM users WHERE email = 'smith@campus.edu'), 'CSC270-G1', '2', 2026)
+ON DUPLICATE KEY UPDATE section_code = VALUES(section_code);
+
+-- Insert student enrollments
+INSERT INTO enrollments (student_id, section_id, enrollment_date, status) VALUES
+    -- John Student enrolled in
+    ((SELECT user_id FROM users WHERE email = 'john.student@campus.edu'), (SELECT section_id FROM course_sections WHERE section_code = 'CSC210-G1'), NOW(), 'active'),
+    ((SELECT user_id FROM users WHERE email = 'john.student@campus.edu'), (SELECT section_id FROM course_sections WHERE section_code = 'CSC220-G1'), NOW(), 'active'),
+    ((SELECT user_id FROM users WHERE email = 'john.student@campus.edu'), (SELECT section_id FROM course_sections WHERE section_code = 'CSC230-G1'), NOW(), 'active'),
+    ((SELECT user_id FROM users WHERE email = 'john.student@campus.edu'), (SELECT section_id FROM course_sections WHERE section_code = 'CSC240-G1'), NOW(), 'active'),
+    -- Sarah Osman enrolled in
+    ((SELECT user_id FROM users WHERE email = 'sarah.osman@campus.edu'), (SELECT section_id FROM course_sections WHERE section_code = 'CSC210-G1'), NOW(), 'active'),
+    ((SELECT user_id FROM users WHERE email = 'sarah.osman@campus.edu'), (SELECT section_id FROM course_sections WHERE section_code = 'CSC220-G1'), NOW(), 'active'),
+    ((SELECT user_id FROM users WHERE email = 'sarah.osman@campus.edu'), (SELECT section_id FROM course_sections WHERE section_code = 'CSC250-G1'), NOW(), 'active'),
+    -- Ali Rahman enrolled in
+    ((SELECT user_id FROM users WHERE email = 'ali.rahman@campus.edu'), (SELECT section_id FROM course_sections WHERE section_code = 'CSC210-G2'), NOW(), 'active'),
+    ((SELECT user_id FROM users WHERE email = 'ali.rahman@campus.edu'), (SELECT section_id FROM course_sections WHERE section_code = 'CSC220-G2'), NOW(), 'active'),
+    ((SELECT user_id FROM users WHERE email = 'ali.rahman@campus.edu'), (SELECT section_id FROM course_sections WHERE section_code = 'CSC260-G1'), NOW(), 'active'),
+    -- Maya Sern enrolled in
+    ((SELECT user_id FROM users WHERE email = 'maya.sern@campus.edu'), (SELECT section_id FROM course_sections WHERE section_code = 'CSC210-G2'), NOW(), 'active'),
+    ((SELECT user_id FROM users WHERE email = 'maya.sern@campus.edu'), (SELECT section_id FROM course_sections WHERE section_code = 'CSC230-G1'), NOW(), 'active'),
+    ((SELECT user_id FROM users WHERE email = 'maya.sern@campus.edu'), (SELECT section_id FROM course_sections WHERE section_code = 'CSC270-G1'), NOW(), 'active'),
+    ((SELECT user_id FROM users WHERE email = 'maya.sern@campus.edu'), (SELECT section_id FROM course_sections WHERE section_code = 'CSC250-G1'), NOW(), 'active')
+ON DUPLICATE KEY UPDATE enrollment_date = VALUES(enrollment_date);
+
+-- Insert timetables (weekly schedule)
+INSERT INTO timetables (section_id, room_id, month, week, day_of_week, start_time, end_time, session_code) VALUES
+    -- CSC210-G1 (Data Structures - Dr. Lim)
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC210-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Block A-101'), 'March', 'Mar 2 - Mar 8', 'Monday', '09:00:00', '10:30:00', 'DS-MON-09'),
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC210-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Lab C-105'), 'March', 'Mar 2 - Mar 8', 'Wednesday', '14:00:00', '15:30:00', 'DS-WED-14'),
+    -- CSC210-G2 (Data Structures - Prof. Smith)
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC210-G2'), (SELECT room_id FROM classrooms WHERE room_name = 'Block B-203'), 'March', 'Mar 2 - Mar 8', 'Tuesday', '10:00:00', '11:30:00', 'DS2-TUE-10'),
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC210-G2'), (SELECT room_id FROM classrooms WHERE room_name = 'Lab C-106'), 'March', 'Mar 2 - Mar 8', 'Friday', '13:00:00', '14:30:00', 'DS2-FRI-13'),
+    -- CSC220-G1 (Database Systems - Ms. Farah)
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC220-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Block A-102'), 'March', 'Mar 2 - Mar 8', 'Tuesday', '09:00:00', '10:30:00', 'DB-TUE-09'),
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC220-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Lab C-105'), 'March', 'Mar 2 - Mar 8', 'Thursday', '15:00:00', '16:30:00', 'DB-THU-15'),
+    -- CSC220-G2 (Database Systems - Mr. Kumar)
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC220-G2'), (SELECT room_id FROM classrooms WHERE room_name = 'Block B-204'), 'March', 'Mar 2 - Mar 8', 'Monday', '11:00:00', '12:30:00', 'DB2-MON-11'),
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC220-G2'), (SELECT room_id FROM classrooms WHERE room_name = 'Lab C-106'), 'March', 'Mar 2 - Mar 8', 'Wednesday', '15:00:00', '16:30:00', 'DB2-WED-15'),
+    -- CSC230 (Software Engineering - Prof. Smith)
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC230-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Room A-301'), 'March', 'Mar 2 - Mar 8', 'Wednesday', '09:00:00', '10:30:00', 'SE-WED-09'),
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC230-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Block B-203'), 'March', 'Mar 2 - Mar 8', 'Friday', '10:00:00', '11:30:00', 'SE-FRI-10'),
+    -- CSC240 (Computer Networks - Dr. Lim)
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC240-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Block D-110'), 'March', 'Mar 2 - Mar 8', 'Thursday', '10:00:00', '11:30:00', 'CN-THU-10'),
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC240-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Block A-102'), 'March', 'Mar 2 - Mar 8', 'Monday', '14:00:00', '15:30:00', 'CN-MON-14'),
+    -- CSC250 (Web Development - Ms. Farah)
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC250-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Block B-204'), 'March', 'Mar 2 - Mar 8', 'Tuesday', '14:00:00', '15:30:00', 'WD-TUE-14'),
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC250-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Lab C-105'), 'March', 'Mar 2 - Mar 8', 'Friday', '14:00:00', '15:30:00', 'WD-FRI-14'),
+    -- CSC260 (Algorithms - Mr. Kumar)
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC260-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Block A-101'), 'March', 'Mar 2 - Mar 8', 'Wednesday', '11:00:00', '12:30:00', 'ALG-WED-11'),
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC260-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Block D-110'), 'March', 'Mar 2 - Mar 8', 'Friday', '11:00:00', '12:30:00', 'ALG-FRI-11'),
+    -- CSC270 (OOP - Prof. Smith)
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC270-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Block A-102'), 'March', 'Mar 2 - Mar 8', 'Monday', '10:00:00', '11:30:00', 'OOP-MON-10'),
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC270-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Lab C-106'), 'March', 'Mar 2 - Mar 8', 'Thursday', '13:00:00', '14:30:00', 'OOP-THU-13')
+ON DUPLICATE KEY UPDATE session_code = VALUES(session_code);
