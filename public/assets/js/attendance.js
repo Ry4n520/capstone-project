@@ -57,8 +57,14 @@ function calculateAllPercentages() {
     const overallPercentage = calculatePercentage(totalAttended, totalClasses);
     const overallElement = document.getElementById('overall-percentage');
     if (overallElement) {
-        overallElement.textContent = overallPercentage + '%';
-        applyColorClass(overallElement, parseFloat(overallPercentage));
+        if (totalClasses === 0) {
+            overallElement.textContent = '0/0 - No classes yet';
+            overallElement.classList.remove('high');
+            overallElement.classList.remove('low');
+        } else {
+            overallElement.textContent = overallPercentage + '%';
+            applyColorClass(overallElement, parseFloat(overallPercentage));
+        }
     }
 }
 

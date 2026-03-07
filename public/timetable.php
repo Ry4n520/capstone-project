@@ -58,117 +58,145 @@ $formatted_time = $current_datetime->format('g:i A');
     <?php include 'includes/footer.php'; ?>
 
     <script>
-        let currentWeekOffset = 0;
-        let minWeekOffset = 0;  // Track earliest available week
-        let maxWeekOffset = 0;  // Track latest available week
-        let hasLoadedData = false;
+        let availableWeeks = [];
+        let currentWeekIndex = -1;
         const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
-        // Format time helper
         function formatTime(timeStr) {
             const [hours, minutes] = timeStr.split(':');
-            const hour = parseInt(hours);
+            const hour = parseInt(hours, 10);
             const ampm = hour >= 12 ? 'PM' : 'AM';
             const displayHour = hour % 12 || 12;
             return `${displayHour}:${minutes} ${ampm}`;
         }
 
-        // Update button states
+        function toIsoDate(dateObj) {
+            const year = dateObj.getFullYear();
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const day = String(dateObj.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function getCurrentMondayIso() {
+            const now = new Date();
+            const day = now.getDay(); // Sunday=0 ... Saturday=6
+            const diff = day === 0 ? -6 : 1 - day;
+            now.setDate(now.getDate() + diff);
+            now.setHours(0, 0, 0, 0);
+            return toIsoDate(now);
+        }
+
         function updateButtonStates() {
             const prevBtn = document.getElementById('prevWeekBtn');
             const nextBtn = document.getElementById('nextWeekBtn');
 
-            if (!hasLoadedData) {
-                prevBtn.disabled = true;
-                nextBtn.disabled = true;
-                return;
-            }
-
-            prevBtn.disabled = currentWeekOffset <= minWeekOffset;
-            nextBtn.disabled = currentWeekOffset >= maxWeekOffset;
+            const noWeeks = availableWeeks.length === 0 || currentWeekIndex < 0;
+            prevBtn.disabled = noWeeks || currentWeekIndex === 0;
+            nextBtn.disabled = noWeeks || currentWeekIndex >= availableWeeks.length - 1;
         }
 
-        // Load timetable data
-        async function loadTimetable(weekOffset = 0) {
-            try {
-                const response = await fetch(`/api/get-timetable.php?week_offset=${weekOffset}`);
-                
-                if (!response.ok) {
-                    throw new Error('Failed to load timetable');
-                }
+        async function fetchAvailableWeeks() {
+            const response = await fetch('/api/get-available-weeks.php');
+            if (!response.ok) {
+                throw new Error('Failed to load available weeks.');
+            }
 
-                const data = await response.json();
+            const data = await response.json();
+            if (!data.success) {
+                throw new Error(data.error || 'Failed to load available weeks.');
+            }
 
-                if (!data.success) {
-                    document.getElementById('timetableContainer').innerHTML = `<p style="text-align: center; color: #e53e3e; padding: 20px;">Error: ${data.error}</p>`;
-                    updateButtonStates();
+            availableWeeks = Array.isArray(data.weeks) ? data.weeks : [];
+        }
+
+        function getInitialWeekIndex() {
+            if (availableWeeks.length === 0) {
+                return -1;
+            }
+
+            const currentMonday = getCurrentMondayIso();
+            const exactMatch = availableWeeks.findIndex(week => week.week_start_date === currentMonday || week.week_start === currentMonday);
+            if (exactMatch >= 0) {
+                return exactMatch;
+            }
+
+            return 0;
+        }
+
+        function renderWeekHeader(weekStart, weekEnd, isReleased) {
+            const weekStartObj = new Date(weekStart);
+            const weekEndObj = new Date(weekEnd);
+            const weekText = `${weekStartObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${weekEndObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+            const releaseText = isReleased ? 'Released' : 'Pending Release';
+            document.getElementById('weekDisplay').textContent = `${weekText} (${releaseText})`;
+        }
+
+        function buildEmptyState(message) {
+            const safeMessage = message || 'No classes scheduled for this week.';
+            return `<p style="text-align: center; padding: 20px; color: #a0aec0;">${safeMessage}</p>`;
+        }
+
+        function buildTimetableHtml(data) {
+            let html = '';
+
+            days.forEach(day => {
+                if (!data.timetable[day] || data.timetable[day].length === 0) {
                     return;
                 }
 
-                // Check if this week has any classes
-                const hasClasses = Object.keys(data.timetable).length > 0 && 
-                                 Object.values(data.timetable).some(day => day.length > 0);
+                const dayDate = data.timetable[day][0].actual_date || data.week_start;
+                const formattedDate = new Date(dayDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit' });
 
-                // Track available weeks
-                if (!hasLoadedData) {
-                    minWeekOffset = weekOffset;
-                    maxWeekOffset = weekOffset;
-                    hasLoadedData = true;
-                } else if (hasClasses) {
-                    minWeekOffset = Math.min(minWeekOffset, weekOffset);
-                    maxWeekOffset = Math.max(maxWeekOffset, weekOffset);
-                }
+                html += `<div class="timetable-day">
+                    <div class="day-label">${day} (${formattedDate})</div>
+                    <div class="timetable-row timetable-head">
+                        <span>Subject Name</span>
+                        <span>Venue</span>
+                        <span>Time</span>
+                        <span>Lecturer Name</span>
+                    </div>`;
 
-                // Update week display
-                const weekStart = new Date(data.week_start);
-                const weekEnd = new Date(data.week_end);
-                const weekDisplay = `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
-                document.getElementById('weekDisplay').textContent = weekDisplay;
-
-                // Build timetable HTML
-                let html = '';
-                
-                days.forEach(day => {
-                    if (!data.timetable[day] || data.timetable[day].length === 0) {
-                        return; // Skip days with no classes
-                    }
-
-                    const dayDate = new Date(data.week_start);
-                    dayDate.setDate(dayDate.getDate() + days.indexOf(day));
-                    const formattedDate = dayDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit' });
-
-                    html += `<div class="timetable-day">
-                        <div class="day-label">${day} (${formattedDate})</div>
-                        <div class="timetable-row timetable-head">
-                            <span>Subject Name</span>
-                            <span>Venue</span>
-                            <span>Time</span>
-                            <span>Lecturer Name</span>
-                        </div>`;
-
-                    data.timetable[day].forEach(course => {
-                        html += `<div class="timetable-row">
-                            <div>
-                                <div class="subject-title">${course.course_name}</div>
-                                <div class="subject-code">${course.section_code}</div>
-                            </div>
-                            <span>${course.venue}</span>
-                            <span>${formatTime(course.start_time)} - ${formatTime(course.end_time)}</span>
-                            <span>${course.lecturer}</span>
-                        </div>`;
-                    });
-
-                    html += `</div>`;
+                data.timetable[day].forEach(course => {
+                    html += `<div class="timetable-row">
+                        <div>
+                            <div class="subject-title">${course.course_name}</div>
+                            <div class="subject-code">${course.section_code}</div>
+                        </div>
+                        <span>${course.venue}</span>
+                        <span>${formatTime(course.start_time)} - ${formatTime(course.end_time)}</span>
+                        <span>${course.lecturer}</span>
+                    </div>`;
                 });
 
-                if (html === '') {
-                    html = '<p style="text-align: center; padding: 20px; color: #a0aec0;">No classes scheduled for this week.</p>';
+                html += `</div>`;
+            });
+
+            return html || buildEmptyState(data.message);
+        }
+
+        async function loadTimetableByIndex(index) {
+            if (index < 0 || index >= availableWeeks.length) {
+                return;
+            }
+
+            const week = availableWeeks[index];
+            const weekStart = week.week_start_date || week.week_start;
+
+            try {
+                const response = await fetch(`/api/get-timetable.php?week_start=${encodeURIComponent(weekStart)}`);
+                if (!response.ok) {
+                    throw new Error('Failed to load timetable.');
                 }
 
-                document.getElementById('timetableContainer').innerHTML = html;
-                currentWeekOffset = weekOffset;
-                updateButtonStates();
+                const data = await response.json();
+                if (!data.success) {
+                    throw new Error(data.error || 'Failed to load timetable.');
+                }
 
+                currentWeekIndex = index;
+                renderWeekHeader(data.week_start, data.week_end, data.is_released);
+                document.getElementById('timetableContainer').innerHTML = buildTimetableHtml(data);
+                updateButtonStates();
             } catch (error) {
                 console.error('Error loading timetable:', error);
                 document.getElementById('timetableContainer').innerHTML = `<p style="text-align: center; color: #e53e3e; padding: 20px; font-size: 0.95rem;">Error loading timetable: ${error.message}</p>`;
@@ -176,24 +204,40 @@ $formatted_time = $current_datetime->format('g:i A');
             }
         }
 
-        // Week navigation handlers
+        async function initializeTimetable() {
+            try {
+                await fetchAvailableWeeks();
+
+                if (availableWeeks.length === 0) {
+                    document.getElementById('weekDisplay').textContent = 'No Available Weeks';
+                    document.getElementById('timetableContainer').innerHTML = buildEmptyState('No released timetable weeks are available yet.');
+                    updateButtonStates();
+                    return;
+                }
+
+                const initialIndex = getInitialWeekIndex();
+                await loadTimetableByIndex(initialIndex);
+            } catch (error) {
+                console.error('Initialization error:', error);
+                document.getElementById('weekDisplay').textContent = 'Error';
+                document.getElementById('timetableContainer').innerHTML = `<p style="text-align: center; color: #e53e3e; padding: 20px;">${error.message}</p>`;
+                updateButtonStates();
+            }
+        }
+
         document.getElementById('prevWeekBtn').addEventListener('click', () => {
-            if (currentWeekOffset > minWeekOffset) {
-                loadTimetable(currentWeekOffset - 1);
+            if (currentWeekIndex > 0) {
+                loadTimetableByIndex(currentWeekIndex - 1);
             }
         });
 
         document.getElementById('nextWeekBtn').addEventListener('click', () => {
-            if (currentWeekOffset < maxWeekOffset) {
-                loadTimetable(currentWeekOffset + 1);
-            } else if (!hasLoadedData) {
-                // Try loading next week to find more data
-                loadTimetable(currentWeekOffset + 1);
+            if (currentWeekIndex < availableWeeks.length - 1) {
+                loadTimetableByIndex(currentWeekIndex + 1);
             }
         });
 
-        // Load current week on page load
-        loadTimetable(0);
+        initializeTimetable();
     </script>
 
     <script src="assets/js/header.js?v=<?php echo time(); ?>"></script>

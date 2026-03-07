@@ -97,14 +97,23 @@ CREATE TABLE IF NOT EXISTS schedule_requests (
     section_id INT NOT NULL,
     room_id INT NOT NULL,
     day_of_week VARCHAR(20) NOT NULL,
+    week_start_date DATE NOT NULL,
+    week_end_date DATE NOT NULL,
     start_time TIME NOT NULL,
     end_time TIME NOT NULL,
     status VARCHAR(30) DEFAULT 'pending',
     requested_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    approved_by INT,
+    approved_at DATETIME,
+    rejection_reason TEXT,
     CONSTRAINT fk_schedule_requests_section
         FOREIGN KEY (section_id) REFERENCES course_sections(section_id),
     CONSTRAINT fk_schedule_requests_room
-        FOREIGN KEY (room_id) REFERENCES classrooms(room_id)
+        FOREIGN KEY (room_id) REFERENCES classrooms(room_id),
+    CONSTRAINT fk_schedule_requests_approved_by
+        FOREIGN KEY (approved_by) REFERENCES users(user_id),
+    INDEX idx_schedule_requests_week (week_start_date, week_end_date),
+    INDEX idx_schedule_requests_status (status)
 );
 
 -- ===========================================
@@ -117,14 +126,24 @@ CREATE TABLE IF NOT EXISTS timetables (
     room_id INT NOT NULL,
     month VARCHAR(20) NOT NULL,
     week VARCHAR(50) NOT NULL,
+    week_start_date DATE NOT NULL,
+    week_end_date DATE NOT NULL,
     day_of_week VARCHAR(20) NOT NULL,
     start_time TIME NOT NULL,
     end_time TIME NOT NULL,
     session_code VARCHAR(50),
+    status VARCHAR(30) DEFAULT 'pending',
+    created_by INT,
+    released_at DATETIME,
     CONSTRAINT fk_timetables_section
         FOREIGN KEY (section_id) REFERENCES course_sections(section_id),
     CONSTRAINT fk_timetables_room
-        FOREIGN KEY (room_id) REFERENCES classrooms(room_id)
+        FOREIGN KEY (room_id) REFERENCES classrooms(room_id),
+    CONSTRAINT fk_timetables_created_by
+        FOREIGN KEY (created_by) REFERENCES users(user_id),
+    INDEX idx_timetables_week_dates (week_start_date, week_end_date),
+    INDEX idx_timetables_status (status),
+    UNIQUE KEY uq_timetables_week_slot (section_id, week_start_date, day_of_week, start_time, end_time)
 );
 
 -- ===========================================
@@ -295,33 +314,92 @@ INSERT INTO enrollments (student_id, section_id, enrollment_date, status) VALUES
     ((SELECT user_id FROM users WHERE email = 'maya.sern@campus.edu'), (SELECT section_id FROM course_sections WHERE section_code = 'CSC250-G1'), NOW(), 'active')
 ON DUPLICATE KEY UPDATE enrollment_date = VALUES(enrollment_date);
 
--- Insert timetables (weekly schedule)
-INSERT INTO timetables (section_id, room_id, month, week, day_of_week, start_time, end_time, session_code) VALUES
+-- Insert timetables (week-specific schedule)
+INSERT INTO timetables (
+    section_id,
+    room_id,
+    month,
+    week,
+    week_start_date,
+    week_end_date,
+    day_of_week,
+    start_time,
+    end_time,
+    session_code,
+    status,
+    created_by,
+    released_at
+) VALUES
     -- CSC210-G1 (Data Structures - Dr. Lim)
-    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC210-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Block A-101'), 'March', 'Mar 2 - Mar 8', 'Monday', '09:00:00', '10:30:00', 'DS-MON-09'),
-    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC210-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Lab C-105'), 'March', 'Mar 2 - Mar 8', 'Wednesday', '14:00:00', '15:30:00', 'DS-WED-14'),
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC210-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Block A-101'), 'March', 'Mar 2 - Mar 8', '2026-03-02', '2026-03-08', 'Monday', '09:00:00', '10:30:00', 'DS-MON-09', 'released', (SELECT user_id FROM users WHERE email = 'admin@campus.edu'), NOW()),
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC210-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Lab C-105'), 'March', 'Mar 2 - Mar 8', '2026-03-02', '2026-03-08', 'Wednesday', '14:00:00', '15:30:00', 'DS-WED-14', 'released', (SELECT user_id FROM users WHERE email = 'admin@campus.edu'), NOW()),
     -- CSC210-G2 (Data Structures - Prof. Smith)
-    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC210-G2'), (SELECT room_id FROM classrooms WHERE room_name = 'Block B-203'), 'March', 'Mar 2 - Mar 8', 'Tuesday', '10:00:00', '11:30:00', 'DS2-TUE-10'),
-    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC210-G2'), (SELECT room_id FROM classrooms WHERE room_name = 'Lab C-106'), 'March', 'Mar 2 - Mar 8', 'Friday', '13:00:00', '14:30:00', 'DS2-FRI-13'),
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC210-G2'), (SELECT room_id FROM classrooms WHERE room_name = 'Block B-203'), 'March', 'Mar 2 - Mar 8', '2026-03-02', '2026-03-08', 'Tuesday', '10:00:00', '11:30:00', 'DS2-TUE-10', 'released', (SELECT user_id FROM users WHERE email = 'admin@campus.edu'), NOW()),
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC210-G2'), (SELECT room_id FROM classrooms WHERE room_name = 'Lab C-106'), 'March', 'Mar 2 - Mar 8', '2026-03-02', '2026-03-08', 'Friday', '13:00:00', '14:30:00', 'DS2-FRI-13', 'released', (SELECT user_id FROM users WHERE email = 'admin@campus.edu'), NOW()),
     -- CSC220-G1 (Database Systems - Ms. Farah)
-    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC220-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Block A-102'), 'March', 'Mar 2 - Mar 8', 'Tuesday', '09:00:00', '10:30:00', 'DB-TUE-09'),
-    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC220-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Lab C-105'), 'March', 'Mar 2 - Mar 8', 'Thursday', '15:00:00', '16:30:00', 'DB-THU-15'),
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC220-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Block A-102'), 'March', 'Mar 2 - Mar 8', '2026-03-02', '2026-03-08', 'Tuesday', '09:00:00', '10:30:00', 'DB-TUE-09', 'released', (SELECT user_id FROM users WHERE email = 'admin@campus.edu'), NOW()),
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC220-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Lab C-105'), 'March', 'Mar 2 - Mar 8', '2026-03-02', '2026-03-08', 'Thursday', '15:00:00', '16:30:00', 'DB-THU-15', 'released', (SELECT user_id FROM users WHERE email = 'admin@campus.edu'), NOW()),
     -- CSC220-G2 (Database Systems - Mr. Kumar)
-    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC220-G2'), (SELECT room_id FROM classrooms WHERE room_name = 'Block B-204'), 'March', 'Mar 2 - Mar 8', 'Monday', '11:00:00', '12:30:00', 'DB2-MON-11'),
-    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC220-G2'), (SELECT room_id FROM classrooms WHERE room_name = 'Lab C-106'), 'March', 'Mar 2 - Mar 8', 'Wednesday', '15:00:00', '16:30:00', 'DB2-WED-15'),
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC220-G2'), (SELECT room_id FROM classrooms WHERE room_name = 'Block B-204'), 'March', 'Mar 2 - Mar 8', '2026-03-02', '2026-03-08', 'Monday', '11:00:00', '12:30:00', 'DB2-MON-11', 'released', (SELECT user_id FROM users WHERE email = 'admin@campus.edu'), NOW()),
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC220-G2'), (SELECT room_id FROM classrooms WHERE room_name = 'Lab C-106'), 'March', 'Mar 2 - Mar 8', '2026-03-02', '2026-03-08', 'Wednesday', '15:00:00', '16:30:00', 'DB2-WED-15', 'released', (SELECT user_id FROM users WHERE email = 'admin@campus.edu'), NOW()),
     -- CSC230 (Software Engineering - Prof. Smith)
-    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC230-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Room A-301'), 'March', 'Mar 2 - Mar 8', 'Wednesday', '09:00:00', '10:30:00', 'SE-WED-09'),
-    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC230-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Block B-203'), 'March', 'Mar 2 - Mar 8', 'Friday', '10:00:00', '11:30:00', 'SE-FRI-10'),
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC230-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Room A-301'), 'March', 'Mar 2 - Mar 8', '2026-03-02', '2026-03-08', 'Wednesday', '09:00:00', '10:30:00', 'SE-WED-09', 'released', (SELECT user_id FROM users WHERE email = 'admin@campus.edu'), NOW()),
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC230-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Block B-203'), 'March', 'Mar 2 - Mar 8', '2026-03-02', '2026-03-08', 'Friday', '10:00:00', '11:30:00', 'SE-FRI-10', 'released', (SELECT user_id FROM users WHERE email = 'admin@campus.edu'), NOW()),
     -- CSC240 (Computer Networks - Dr. Lim)
-    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC240-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Block D-110'), 'March', 'Mar 2 - Mar 8', 'Thursday', '10:00:00', '11:30:00', 'CN-THU-10'),
-    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC240-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Block A-102'), 'March', 'Mar 2 - Mar 8', 'Monday', '14:00:00', '15:30:00', 'CN-MON-14'),
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC240-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Block D-110'), 'March', 'Mar 2 - Mar 8', '2026-03-02', '2026-03-08', 'Thursday', '10:00:00', '11:30:00', 'CN-THU-10', 'released', (SELECT user_id FROM users WHERE email = 'admin@campus.edu'), NOW()),
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC240-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Block A-102'), 'March', 'Mar 2 - Mar 8', '2026-03-02', '2026-03-08', 'Monday', '14:00:00', '15:30:00', 'CN-MON-14', 'released', (SELECT user_id FROM users WHERE email = 'admin@campus.edu'), NOW()),
     -- CSC250 (Web Development - Ms. Farah)
-    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC250-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Block B-204'), 'March', 'Mar 2 - Mar 8', 'Tuesday', '14:00:00', '15:30:00', 'WD-TUE-14'),
-    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC250-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Lab C-105'), 'March', 'Mar 2 - Mar 8', 'Friday', '14:00:00', '15:30:00', 'WD-FRI-14'),
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC250-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Block B-204'), 'March', 'Mar 2 - Mar 8', '2026-03-02', '2026-03-08', 'Tuesday', '14:00:00', '15:30:00', 'WD-TUE-14', 'released', (SELECT user_id FROM users WHERE email = 'admin@campus.edu'), NOW()),
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC250-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Lab C-105'), 'March', 'Mar 2 - Mar 8', '2026-03-02', '2026-03-08', 'Friday', '14:00:00', '15:30:00', 'WD-FRI-14', 'released', (SELECT user_id FROM users WHERE email = 'admin@campus.edu'), NOW()),
     -- CSC260 (Algorithms - Mr. Kumar)
-    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC260-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Block A-101'), 'March', 'Mar 2 - Mar 8', 'Wednesday', '11:00:00', '12:30:00', 'ALG-WED-11'),
-    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC260-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Block D-110'), 'March', 'Mar 2 - Mar 8', 'Friday', '11:00:00', '12:30:00', 'ALG-FRI-11'),
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC260-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Block A-101'), 'March', 'Mar 2 - Mar 8', '2026-03-02', '2026-03-08', 'Wednesday', '11:00:00', '12:30:00', 'ALG-WED-11', 'released', (SELECT user_id FROM users WHERE email = 'admin@campus.edu'), NOW()),
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC260-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Block D-110'), 'March', 'Mar 2 - Mar 8', '2026-03-02', '2026-03-08', 'Friday', '11:00:00', '12:30:00', 'ALG-FRI-11', 'released', (SELECT user_id FROM users WHERE email = 'admin@campus.edu'), NOW()),
     -- CSC270 (OOP - Prof. Smith)
-    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC270-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Block A-102'), 'March', 'Mar 2 - Mar 8', 'Monday', '10:00:00', '11:30:00', 'OOP-MON-10'),
-    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC270-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Lab C-106'), 'March', 'Mar 2 - Mar 8', 'Thursday', '13:00:00', '14:30:00', 'OOP-THU-13')
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC270-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Block A-102'), 'March', 'Mar 2 - Mar 8', '2026-03-02', '2026-03-08', 'Monday', '10:00:00', '11:30:00', 'OOP-MON-10', 'released', (SELECT user_id FROM users WHERE email = 'admin@campus.edu'), NOW()),
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC270-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Lab C-106'), 'March', 'Mar 2 - Mar 8', '2026-03-02', '2026-03-08', 'Thursday', '13:00:00', '14:30:00', 'OOP-THU-13', 'released', (SELECT user_id FROM users WHERE email = 'admin@campus.edu'), NOW())
+ON DUPLICATE KEY UPDATE session_code = VALUES(session_code);
+
+-- Insert timetables (week-specific schedule: Mar 9 - Mar 15)
+INSERT INTO timetables (
+    section_id,
+    room_id,
+    month,
+    week,
+    week_start_date,
+    week_end_date,
+    day_of_week,
+    start_time,
+    end_time,
+    session_code,
+    status,
+    created_by,
+    released_at
+) VALUES
+    -- CSC210-G1 (Data Structures - Dr. Lim)
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC210-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Block A-101'), 'March', 'Mar 9 - Mar 15', '2026-03-09', '2026-03-15', 'Monday', '09:00:00', '10:30:00', 'DS-MON-09-W2', 'released', (SELECT user_id FROM users WHERE email = 'admin@campus.edu'), NOW()),
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC210-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Lab C-105'), 'March', 'Mar 9 - Mar 15', '2026-03-09', '2026-03-15', 'Wednesday', '14:00:00', '15:30:00', 'DS-WED-14-W2', 'released', (SELECT user_id FROM users WHERE email = 'admin@campus.edu'), NOW()),
+    -- CSC210-G2 (Data Structures - Prof. Smith)
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC210-G2'), (SELECT room_id FROM classrooms WHERE room_name = 'Block B-203'), 'March', 'Mar 9 - Mar 15', '2026-03-09', '2026-03-15', 'Tuesday', '10:00:00', '11:30:00', 'DS2-TUE-10-W2', 'released', (SELECT user_id FROM users WHERE email = 'admin@campus.edu'), NOW()),
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC210-G2'), (SELECT room_id FROM classrooms WHERE room_name = 'Lab C-106'), 'March', 'Mar 9 - Mar 15', '2026-03-09', '2026-03-15', 'Friday', '13:00:00', '14:30:00', 'DS2-FRI-13-W2', 'released', (SELECT user_id FROM users WHERE email = 'admin@campus.edu'), NOW()),
+    -- CSC220-G1 (Database Systems - Ms. Farah)
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC220-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Block A-102'), 'March', 'Mar 9 - Mar 15', '2026-03-09', '2026-03-15', 'Tuesday', '09:00:00', '10:30:00', 'DB-TUE-09-W2', 'released', (SELECT user_id FROM users WHERE email = 'admin@campus.edu'), NOW()),
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC220-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Lab C-105'), 'March', 'Mar 9 - Mar 15', '2026-03-09', '2026-03-15', 'Thursday', '15:00:00', '16:30:00', 'DB-THU-15-W2', 'released', (SELECT user_id FROM users WHERE email = 'admin@campus.edu'), NOW()),
+    -- CSC220-G2 (Database Systems - Mr. Kumar)
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC220-G2'), (SELECT room_id FROM classrooms WHERE room_name = 'Block B-204'), 'March', 'Mar 9 - Mar 15', '2026-03-09', '2026-03-15', 'Monday', '11:00:00', '12:30:00', 'DB2-MON-11-W2', 'released', (SELECT user_id FROM users WHERE email = 'admin@campus.edu'), NOW()),
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC220-G2'), (SELECT room_id FROM classrooms WHERE room_name = 'Lab C-106'), 'March', 'Mar 9 - Mar 15', '2026-03-09', '2026-03-15', 'Wednesday', '15:00:00', '16:30:00', 'DB2-WED-15-W2', 'released', (SELECT user_id FROM users WHERE email = 'admin@campus.edu'), NOW()),
+    -- CSC230 (Software Engineering - Prof. Smith)
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC230-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Room A-301'), 'March', 'Mar 9 - Mar 15', '2026-03-09', '2026-03-15', 'Wednesday', '09:00:00', '10:30:00', 'SE-WED-09-W2', 'released', (SELECT user_id FROM users WHERE email = 'admin@campus.edu'), NOW()),
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC230-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Block B-203'), 'March', 'Mar 9 - Mar 15', '2026-03-09', '2026-03-15', 'Friday', '10:00:00', '11:30:00', 'SE-FRI-10-W2', 'released', (SELECT user_id FROM users WHERE email = 'admin@campus.edu'), NOW()),
+    -- CSC240 (Computer Networks - Dr. Lim)
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC240-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Block D-110'), 'March', 'Mar 9 - Mar 15', '2026-03-09', '2026-03-15', 'Thursday', '10:00:00', '11:30:00', 'CN-THU-10-W2', 'released', (SELECT user_id FROM users WHERE email = 'admin@campus.edu'), NOW()),
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC240-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Block A-102'), 'March', 'Mar 9 - Mar 15', '2026-03-09', '2026-03-15', 'Monday', '14:00:00', '15:30:00', 'CN-MON-14-W2', 'released', (SELECT user_id FROM users WHERE email = 'admin@campus.edu'), NOW()),
+    -- CSC250 (Web Development - Ms. Farah)
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC250-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Block B-204'), 'March', 'Mar 9 - Mar 15', '2026-03-09', '2026-03-15', 'Tuesday', '14:00:00', '15:30:00', 'WD-TUE-14-W2', 'released', (SELECT user_id FROM users WHERE email = 'admin@campus.edu'), NOW()),
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC250-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Lab C-105'), 'March', 'Mar 9 - Mar 15', '2026-03-09', '2026-03-15', 'Friday', '14:00:00', '15:30:00', 'WD-FRI-14-W2', 'released', (SELECT user_id FROM users WHERE email = 'admin@campus.edu'), NOW()),
+    -- CSC260 (Algorithms - Mr. Kumar)
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC260-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Block A-101'), 'March', 'Mar 9 - Mar 15', '2026-03-09', '2026-03-15', 'Wednesday', '11:00:00', '12:30:00', 'ALG-WED-11-W2', 'released', (SELECT user_id FROM users WHERE email = 'admin@campus.edu'), NOW()),
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC260-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Block D-110'), 'March', 'Mar 9 - Mar 15', '2026-03-09', '2026-03-15', 'Friday', '11:00:00', '12:30:00', 'ALG-FRI-11-W2', 'released', (SELECT user_id FROM users WHERE email = 'admin@campus.edu'), NOW()),
+    -- CSC270 (OOP - Prof. Smith)
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC270-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Block A-102'), 'March', 'Mar 9 - Mar 15', '2026-03-09', '2026-03-15', 'Monday', '10:00:00', '11:30:00', 'OOP-MON-10-W2', 'released', (SELECT user_id FROM users WHERE email = 'admin@campus.edu'), NOW()),
+    ((SELECT section_id FROM course_sections WHERE section_code = 'CSC270-G1'), (SELECT room_id FROM classrooms WHERE room_name = 'Lab C-106'), 'March', 'Mar 9 - Mar 15', '2026-03-09', '2026-03-15', 'Thursday', '13:00:00', '14:30:00', 'OOP-THU-13-W2', 'released', (SELECT user_id FROM users WHERE email = 'admin@campus.edu'), NOW())
 ON DUPLICATE KEY UPDATE session_code = VALUES(session_code);
