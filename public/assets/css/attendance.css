@@ -2,6 +2,241 @@
  * Attendance Page Styles
  */
 
+.hidden {
+    display: none !important;
+}
+
+.card-header {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #1f2937;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.loading-state,
+.empty-state {
+    padding: 1.25rem;
+    color: #6b7280;
+}
+
+.lecturer-week-group + .lecturer-week-group {
+    border-top: 1px solid #e5e7eb;
+}
+
+.lecturer-week-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.9rem 1.25rem;
+    background: #f8fafc;
+    color: #334155;
+    font-size: 0.92rem;
+    font-weight: 700;
+}
+
+.lecturer-week-heading.is-today {
+    background: #eff6ff;
+    color: #1d4ed8;
+}
+
+.lecturer-week-heading-side {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.lecturer-week-heading-date {
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.lecturer-week-heading-badge {
+    border-radius: 999px;
+    background: rgba(37, 99, 235, 0.12);
+    color: #1d4ed8;
+    padding: 0.18rem 0.55rem;
+    font-size: 0.76rem;
+    font-weight: 700;
+}
+
+.lecturer-class-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.lecturer-class-row:last-child {
+    border-bottom: none;
+}
+
+.class-main {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.class-title {
+    color: #111827;
+    font-weight: 600;
+    font-size: 0.98rem;
+}
+
+.class-meta {
+    color: #6b7280;
+    font-size: 0.88rem;
+}
+
+.btn-start-attendance,
+.btn-end-class {
+    border: none;
+    border-radius: 8px;
+    padding: 0.65rem 1rem;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.btn-start-attendance {
+    background: #2563eb;
+    color: #ffffff;
+}
+
+.btn-start-attendance:hover {
+    background: #1d4ed8;
+}
+
+.btn-start-attendance:disabled,
+.btn-start-attendance.is-disabled {
+    background: #cbd5e1;
+    color: #475569;
+    cursor: not-allowed;
+}
+
+.active-session-content {
+    padding: 1.25rem;
+    display: grid;
+    grid-template-columns: 1.5fr 2fr auto;
+    gap: 1rem;
+    align-items: center;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.code-display {
+    border: 1px solid #dbeafe;
+    border-radius: 10px;
+    background: #eff6ff;
+    padding: 0.8rem;
+}
+
+.code-label {
+    color: #1e40af;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.code-value {
+    color: #0f172a;
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1;
+    margin: 0.4rem 0;
+}
+
+.code-expiry {
+    color: #334155;
+    font-size: 0.83rem;
+}
+
+.attendance-stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(110px, 1fr));
+    gap: 0.8rem;
+}
+
+.stat-box {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #f8fafc;
+    padding: 0.7rem;
+    text-align: center;
+}
+
+.stat-number {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.btn-end-class {
+    background: #dc2626;
+    color: #ffffff;
+}
+
+.btn-end-class:hover {
+    background: #b91c1c;
+}
+
+.attendance-list-header {
+    padding: 0.9rem 1.25rem;
+    color: #111827;
+    font-weight: 600;
+}
+
+.attendance-list {
+    max-height: 320px;
+    overflow: auto;
+}
+
+.attendance-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 0.85rem 1.25rem;
+    border-top: 1px solid #f1f5f9;
+}
+
+.attendance-item-main {
+    min-width: 0;
+}
+
+.attendance-item-name {
+    font-weight: 600;
+    color: #111827;
+}
+
+.attendance-item-email {
+    color: #6b7280;
+    font-size: 0.84rem;
+}
+
+.attendance-item-time {
+    color: #475569;
+    font-size: 0.84rem;
+    white-space: nowrap;
+}
+
+.attendance-code-message {
+    margin-top: 0.85rem;
+    text-align: center;
+    font-size: 0.9rem;
+    min-height: 1.2rem;
+}
+
+.attendance-code-message.success {
+    color: #15803d;
+}
+
+.attendance-code-message.error {
+    color: #dc2626;
+}
+
 /* Attendance Container - Left/Right Layout */
 .attendance-container {
     display: grid;
@@ -346,6 +581,27 @@
 }
 
 @media screen and (max-width: 768px) {
+    .lecturer-class-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .btn-start-attendance {
+        width: 100%;
+    }
+
+    .active-session-content {
+        grid-template-columns: 1fr;
+    }
+
+    .attendance-stats {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .btn-end-class {
+        width: 100%;
+    }
+
     .attendance-stats-right {
         padding: 1.5rem;
     }
@@ -370,6 +626,15 @@
 }
 
 @media screen and (max-width: 480px) {
+    .attendance-item {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .attendance-item-time {
+        white-space: normal;
+    }
+
     .semester-header {
         padding: 1rem;
     }

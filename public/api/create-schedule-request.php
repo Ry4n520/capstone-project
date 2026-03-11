@@ -3,7 +3,7 @@
  * Smart Campus Management System - Create Schedule Request API
  *
  * Lecturer request workflow:
- * 1) Lecturer submits section/week/day/time/room request.
+ * 1) Lecturer submits section/date/time/room request.
  * 2) Request must be submitted at least 7 days before target week start.
  * 3) Request is stored as pending for admin approval.
  */
@@ -51,6 +51,7 @@ $input = get_input_data();
 
 $section_id = isset($input['section_id']) ? (int) $input['section_id'] : 0;
 $room_id = isset($input['room_id']) ? (int) $input['room_id'] : 0;
+$class_date_raw = isset($input['class_date']) ? trim((string) $input['class_date']) : '';
 $day_of_week = isset($input['day_of_week']) ? trim((string) $input['day_of_week']) : '';
 $start_time = isset($input['start_time']) ? trim((string) $input['start_time']) : '';
 $end_time = isset($input['end_time']) ? trim((string) $input['end_time']) : '';
@@ -59,35 +60,63 @@ $week_end_raw = isset($input['week_end_date']) ? trim((string) $input['week_end_
 
 $valid_days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
-if ($section_id <= 0 || $room_id <= 0 || $day_of_week === '' || $start_time === '' || $end_time === '' || $week_start_raw === '') {
+if ($section_id <= 0 || $room_id <= 0 || $start_time === '' || $end_time === '') {
     http_response_code(400);
     echo json_encode(['error' => 'Missing required fields.']);
     exit;
 }
 
-if (!in_array($day_of_week, $valid_days, true)) {
+if ($class_date_raw === '' && ($day_of_week === '' || $week_start_raw === '')) {
     http_response_code(400);
-    echo json_encode(['error' => 'Invalid day_of_week.']);
+    echo json_encode(['error' => 'Missing class_date or week/day details.']);
     exit;
 }
 
-$week_start_date = parse_iso_date($week_start_raw);
-if ($week_start_date === null) {
-    http_response_code(400);
-    echo json_encode(['error' => 'Invalid week_start_date. Expected Y-m-d.']);
-    exit;
-}
 
+$week_start_date = null;
 $week_end_date = null;
-if ($week_end_raw !== '') {
-    $week_end_date = parse_iso_date($week_end_raw);
-    if ($week_end_date === null) {
+
+if ($class_date_raw !== '') {
+    $class_date = parse_iso_date($class_date_raw);
+    if ($class_date === null) {
         http_response_code(400);
-        echo json_encode(['error' => 'Invalid week_end_date. Expected Y-m-d.']);
+        echo json_encode(['error' => 'Invalid class_date. Expected Y-m-d.']);
         exit;
     }
-} else {
+
+    $day_of_week = $class_date->format('l');
+    if (!in_array($day_of_week, $valid_days, true)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Class date must be between Monday and Friday.']);
+        exit;
+    }
+
+    $week_start_date = $class_date->modify('-' . ((int) $class_date->format('N') - 1) . ' days');
     $week_end_date = $week_start_date->modify('+6 days');
+} else {
+    if (!in_array($day_of_week, $valid_days, true)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid day_of_week.']);
+        exit;
+    }
+
+    $week_start_date = parse_iso_date($week_start_raw);
+    if ($week_start_date === null) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid week_start_date. Expected Y-m-d.']);
+        exit;
+    }
+
+    if ($week_end_raw !== '') {
+        $week_end_date = parse_iso_date($week_end_raw);
+        if ($week_end_date === null) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Invalid week_end_date. Expected Y-m-d.']);
+            exit;
+        }
+    } else {
+        $week_end_date = $week_start_date->modify('+6 days');
+    }
 }
 
 if (strtotime($start_time) === false || strtotime($end_time) === false || strtotime($start_time) >= strtotime($end_time)) {
@@ -109,6 +138,17 @@ if ($request_date > $deadline) {
 
 try {
     $lecturer_id = (int) $_SESSION['user_id'];
+
+    $room_stmt = $pdo->prepare(
+        'SELECT room_id FROM classrooms WHERE room_id = :room_id LIMIT 1'
+    );
+    $room_stmt->execute([':room_id' => $room_id]);
+
+    if (!$room_stmt->fetch()) {
+        http_response_code(404);
+        echo json_encode(['error' => 'Selected classroom was not found.']);
+        exit;
+    }
 
     // Ensure lecturer owns this section.
     $section_stmt = $pdo->prepare(
@@ -137,6 +177,30 @@ try {
     if (!$week_exists_stmt->fetch()) {
         http_response_code(404);
         echo json_encode(['error' => 'Target week does not exist in timetable.']);
+        exit;
+    }
+
+    $pending_request_stmt = $pdo->prepare(
+        'SELECT request_id
+         FROM schedule_requests
+         WHERE section_id = :section_id
+           AND week_start_date = :week_start_date
+           AND day_of_week = :day_of_week
+           AND status = :status
+         LIMIT 1'
+    );
+    $pending_request_stmt->execute([
+        ':section_id' => $section_id,
+        ':week_start_date' => $week_start_date->format('Y-m-d'),
+        ':day_of_week' => $day_of_week,
+        ':status' => 'pending'
+    ]);
+
+    if ($pending_request_stmt->fetch()) {
+        http_response_code(409);
+        echo json_encode([
+            'error' => 'A pending schedule request already exists for this class week and day.'
+        ]);
         exit;
     }
 

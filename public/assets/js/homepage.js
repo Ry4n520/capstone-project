@@ -103,6 +103,11 @@ document.addEventListener('DOMContentLoaded', function() {
     checkOngoingClasses();
     setInterval(checkOngoingClasses, 60000);
     
+    // Load dynamic homepage data
+    loadHomepageData();
+    // Refresh every 60 seconds
+    setInterval(loadHomepageData, 60000);
+    
     // Add smooth hover effects to cards
     const cards = document.querySelectorAll('.card');
     cards.forEach(card => {
@@ -111,3 +116,244 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
+
+/**
+ * Load homepage data from API
+ * Gets today's classes, attendance, bookings, and announcements
+ */
+function loadHomepageData() {
+    console.log('[Homepage] Starting data load...');
+    fetch('api/get-homepage-data.php')
+        .then(response => {
+            console.log('[Homepage] Response status:', response.status);
+            return response.text();
+        })
+        .then(text => {
+            console.log('[Homepage] Raw response:', text.substring(0, 300));
+            
+            let result;
+            try {
+                result = JSON.parse(text);
+            } catch (e) {
+                console.error('[Homepage] JSON parse error:', e);
+                throw new Error('Invalid JSON response');
+            }
+            
+            console.log('[Homepage] Parsed result:', result);
+            
+            if (!result.success) {
+                console.error('[Homepage] API returned error:', result);
+                throw new Error(result.message || 'API error');
+            }
+            
+            if (!result.data) {
+                console.error('[Homepage] No data property in response');
+                throw new Error('No data in response');
+            }
+            
+            const data = result.data;
+            
+            // Log what we received
+            console.log('[Homepage] Data received:', {
+                attendance_rate: data.attendance_rate,
+                todays_classes: data.todays_classes?.length,
+                upcoming_bookings: data.upcoming_bookings?.length,
+                recent_announcements: data.recent_announcements?.length,
+                active_bookings_count: data.active_bookings_count,
+                upcoming_classes_count: data.upcoming_classes_count,
+                debug: data._debug
+            });
+            
+            // Update attendance rate
+            if (data.attendance_rate !== undefined) {
+                const attendanceEl = document.getElementById('attendance-rate');
+                if (attendanceEl) {
+                    attendanceEl.textContent = data.attendance_rate + '%';
+                    console.log('[Homepage] Set attendance rate to:', data.attendance_rate + '%');
+                }
+            }
+            
+            // Update counts
+            const activeBookingsEl = document.getElementById('active-bookings');
+            const upcomingClassesEl = document.getElementById('upcoming-classes');
+            
+            if (activeBookingsEl) {
+                activeBookingsEl.textContent = data.active_bookings_count || 0;
+                console.log('[Homepage] Set active bookings to:', data.active_bookings_count);
+            }
+            
+            if (upcomingClassesEl) {
+                upcomingClassesEl.textContent = data.upcoming_classes_count || 0;
+                console.log('[Homepage] Set upcoming classes to:', data.upcoming_classes_count);
+            }
+            
+            // Display data
+            displayTodaysClasses(data.todays_classes || []);
+            displayAnnouncements(data.recent_announcements || []);
+            displayUpcomingBookings(data.upcoming_bookings || []);
+            
+            console.log('[Homepage] Data display complete');
+        })
+        .catch(error => {
+            console.error('[Homepage] Error:', error);
+            alert('Error loading homepage data. Check console for details.');
+        });
+}
+
+/**
+ * Display today's classes
+ */
+function displayTodaysClasses(classes) {
+    // Find the card with "Today's Classes" header
+    const cards = document.querySelectorAll('.card-grid.row-2 .card');
+    if (cards.length === 0) return;
+    
+    const classesCard = cards[0];
+    
+    // Clear previous content
+    const emptyStates = classesCard.querySelectorAll('.empty-state');
+    emptyStates.forEach(el => el.remove());
+    
+    const existingList = classesCard.querySelector('.classes-list');
+    if (existingList) existingList.remove();
+    
+    // If no classes, show empty state
+    if (classes.length === 0) {
+        const emptyDiv = document.createElement('div');
+        emptyDiv.className = 'empty-state';
+        emptyDiv.innerHTML = '<p>No classes scheduled for today</p>';
+        classesCard.appendChild(emptyDiv);
+        return;
+    }
+    
+    // Create classes list container
+    const classesHtml = classes.map(cls => `
+        <div class="class-item ${cls.class_status}">
+            <div>
+                <div class="class-time">${formatTime(cls.start_time)} - ${formatTime(cls.end_time)}</div>
+                <div class="class-name">${cls.course_name}</div>
+                <div class="class-lecturer">${cls.lecturer_name}</div>
+            </div>
+            <div style="text-align: right;">
+                ${cls.class_status === 'ongoing' ? '<span class="class-status status-ongoing">Ongoing</span>' : ''}
+                <div class="class-room">${cls.room_name}${cls.building ? ' - ' + cls.building : ''}</div>
+            </div>
+        </div>
+    `).join('');
+    
+    const classesContainer = document.createElement('div');
+    classesContainer.className = 'classes-list';
+    classesContainer.innerHTML = classesHtml;
+    classesCard.appendChild(classesContainer);
+}
+
+/**
+ * Display announcements
+ */
+function displayAnnouncements(announcements) {
+    const cards = document.querySelectorAll('.card-grid.row-2 .card');
+    if (cards.length < 2) return;
+    
+    const announcementCard = cards[1];
+    
+    const emptyStates = announcementCard.querySelectorAll('.empty-state');
+    emptyStates.forEach(el => el.remove());
+    
+    const existingList = announcementCard.querySelector('.announcements-list');
+    if (existingList) existingList.remove();
+    
+    if (announcements.length === 0) {
+        const emptyDiv = document.createElement('div');
+        emptyDiv.className = 'empty-state';
+        emptyDiv.innerHTML = '<p>No announcements at this time</p>';
+        announcementCard.appendChild(emptyDiv);
+        return;
+    }
+    
+    const announcementsHtml = announcements.map(ann => `
+        <div class="announcement-item" onclick="window.location.href='announcements.php'">
+            <div class="announcement-title">${ann.title}</div>
+            <div class="announcement-desc">${truncate(ann.content, 100)}</div>
+            <div class="announcement-time">${ann.time_ago}</div>
+        </div>
+    `).join('');
+    
+    const announcementsContainer = document.createElement('div');
+    announcementsContainer.className = 'announcements-list';
+    announcementsContainer.innerHTML = announcementsHtml + `
+        <a href="announcements.php" class="view-all-link">View All Announcements →</a>
+    `;
+    announcementCard.appendChild(announcementsContainer);
+}
+
+/**
+ * Display upcoming bookings
+ */
+function displayUpcomingBookings(bookings) {
+    // Find the card in row-1 which should be bookings
+    const bookingsCard = document.querySelector('.card-grid.row-1 .card');
+    if (!bookingsCard) return;
+    
+    // Clear previous content
+    const emptyStates = bookingsCard.querySelectorAll('.empty-state');
+    emptyStates.forEach(el => el.remove());
+    
+    const existingGrid = bookingsCard.querySelector('.bookings-grid');
+    if (existingGrid) existingGrid.remove();
+    
+    // If no bookings, show empty state
+    if (bookings.length === 0) {
+        const emptyDiv = document.createElement('div');
+        emptyDiv.className = 'empty-state';
+        emptyDiv.innerHTML = '<p>No upcoming facility bookings</p>';
+        bookingsCard.appendChild(emptyDiv);
+        return;
+    }
+    
+    // Create bookings grid
+    const bookingsHtml = bookings.map(booking => `
+        <div class="booking-item">
+            <div class="booking-title">${booking.facility_name}</div>
+            <div class="booking-time">${formatDate(booking.booking_date)} • ${formatTime(booking.start_time)}</div>
+            <div class="booking-status ${booking.booking_status === 'confirmed' ? 'status-confirmed' : 'status-pending'}">
+                ${booking.booking_status === 'confirmed' ? '✓ Confirmed' : '⏳ Pending'}
+            </div>
+        </div>
+    `).join('');
+    
+    const bookingsContainer = document.createElement('div');
+    bookingsContainer.className = 'bookings-grid';
+    bookingsContainer.innerHTML = bookingsHtml;
+    bookingsCard.appendChild(bookingsContainer);
+}
+
+/**
+ * Format time from 24-hour format to 12-hour format
+ */
+function formatTime(time) {
+    if (!time) return '';
+    const [hours, minutes] = time.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour % 12 || 12;
+    return `${displayHour}:${minutes} ${ampm}`;
+}
+
+/**
+ * Format date to readable format
+ */
+function formatDate(date) {
+    if (!date) return '';
+    return new Date(date + 'T00:00:00').toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric'
+    });
+}
+
+/**
+ * Truncate text to specified length
+ */
+function truncate(text, length) {
+    if (!text) return '';
+    return text.length > length ? text.substring(0, length) + '...' : text;
+}

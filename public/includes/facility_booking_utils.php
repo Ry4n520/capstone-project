@@ -93,7 +93,17 @@ function facility_booking_get_slots_for_date(PDO $pdo, $facilityId, $date)
     $result = [];
     $availableCount = 0;
 
+    // REAL-TIME FILTERING: Check if booking date is today
+    date_default_timezone_set('Asia/Kuala_Lumpur');
+    $is_today = ($date === date('Y-m-d'));
+    $current_time = date('H:i:s');
+
     foreach ($slots as $slot) {
+        // Skip past slots if booking for today (REAL-TIME FILTERING)
+        if ($is_today && $slot['start'] <= $current_time) {
+            continue; // Don't include past slots for today
+        }
+
         $isAvailable = !facility_booking_has_conflict($existingBookings, $slot['start'], $slot['end']);
 
         if ($isAvailable) {
@@ -135,6 +145,7 @@ function facility_booking_get_facilities_with_availability(PDO $pdo, $type, $dat
     foreach ($facilities as $facility) {
         $availability = facility_booking_get_slots_for_date($pdo, (int) $facility['facility_id'], $date);
         $facility['slots'] = $availability['slots'];
+        $facility['all_slots'] = $availability['slots'];  // Include ALL slots (available and booked)
         $facility['available_slots'] = array_values(array_filter($availability['slots'], function ($slot) {
             return $slot['available'] === true;
         }));

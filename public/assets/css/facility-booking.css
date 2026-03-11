@@ -268,10 +268,13 @@
 }
 
 .time-slot.booked {
-    background: #f7fafc;
-    color: #a0aec0;
-    cursor: not-allowed;
+    background: #f7fafc !important;
+    color: #a0aec0 !important;
+    cursor: not-allowed !important;
     text-decoration: line-through;
+    pointer-events: none !important;
+    border-color: #cbd5e0 !important;
+    opacity: 0.6;
 }
 
 .time-slot:disabled {

@@ -38,6 +38,22 @@ if ($date < $today || $date > $maxDate) {
     exit;
 }
 
+// Check if date is a public holiday
+$holiday_check = "SELECT holiday_name FROM public_holidays WHERE holiday_date = :date";
+$holiday_stmt = $pdo->prepare($holiday_check);
+$holiday_stmt->execute([':date' => $dateRaw]);
+$holiday = $holiday_stmt->fetch(PDO::FETCH_ASSOC);
+
+if ($holiday) {
+    http_response_code(422);
+    echo json_encode([
+        'success' => false,
+        'error' => 'Cannot book on public holidays',
+        'message' => 'Cannot book on ' . $holiday['holiday_name']
+    ]);
+    exit;
+}
+
 try {
     $facilityStmt = $pdo->prepare(
         'SELECT facility_id, facility_name, location, facility_type

@@ -99,6 +99,8 @@ try {
         $query = "
             SELECT
                 t.timetable_id,
+                t.section_id,
+                t.room_id,
                 t.month,
                 t.week,
                 t.day_of_week,
@@ -155,6 +157,8 @@ try {
         $query = "
             SELECT
                 t.timetable_id,
+                t.section_id,
+                t.room_id,
                 t.month,
                 t.week,
                 t.day_of_week,
@@ -210,6 +214,8 @@ try {
         $query = "
             SELECT
                 t.timetable_id,
+                t.section_id,
+                t.room_id,
                 t.month,
                 t.week,
                 t.day_of_week,
@@ -303,6 +309,8 @@ try {
 
         $timetable_by_day[$day][] = [
             'timetable_id' => $row['timetable_id'],
+            'section_id' => isset($row['section_id']) ? (int) $row['section_id'] : null,
+            'room_id' => isset($row['room_id']) ? (int) $row['room_id'] : null,
             'course_name' => $row['course_name'],
             'course_id' => $row['course_id'],
             'section_code' => $row['section_code'],

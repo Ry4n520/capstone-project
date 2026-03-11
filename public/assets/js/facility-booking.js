@@ -95,8 +95,18 @@ function displayFacilities(facilities) {
 
         const availableCount = Number(facility.available_count || 0);
         const isFullyBookedToday = availableCount === 0;
-        const slotsHtml = (facility.available_slots || [])
-            .map(slot => `<span class="time-slot" data-start="${slot.start}" data-end="${slot.end}" data-label="${escapeHtml(slot.label)}" onclick="selectFacilityTimeSlot(event, ${Number(facility.facility_id)})">${slot.label}</span>`)
+        
+        // Display ALL slots (both available and booked)
+        // Use all_slots if available, otherwise fall back to slots
+        const allSlots = facility.all_slots || facility.available_slots || [];
+        const slotsHtml = allSlots
+            .map(slot => {
+                // Mark booked slots with 'booked' class
+                const booked = !slot.available ? 'booked' : '';
+                return `<span class="time-slot ${booked}" data-start="${slot.start}" data-end="${slot.end}" data-label="${escapeHtml(slot.label)}" 
+                    ${!slot.available ? 'title="Already booked"' : 'onclick="selectFacilityTimeSlot(event, ' + Number(facility.facility_id) + ')"'}
+                    >${slot.label}</span>`;
+            })
             .join('');
 
         const card = document.createElement('div');
@@ -310,10 +320,15 @@ async function loadAvailableSlots() {
         const data = await response.json();
 
         if (!response.ok || !data.success) {
-            throw new Error(data.error || 'Unable to load time slots.');
+            throw new Error(data.error || data.message || 'Unable to load time slots.');
         }
 
         container.innerHTML = '';
+
+        if (!data.slots || data.slots.length === 0) {
+            container.innerHTML = '<div class="facility-empty-state">No available slots for this date.</div>';
+            return;
+        }
 
         (data.slots || []).forEach(slot => {
             const slotBtn = document.createElement('button');
@@ -322,8 +337,13 @@ async function loadAvailableSlots() {
             slotBtn.textContent = slot.label;
 
             if (!slot.available) {
+                // BOOKED SLOT: Make it completely disabled and unclickable
                 slotBtn.disabled = true;
+                slotBtn.title = 'Already booked';
+                slotBtn.style.pointerEvents = 'none';
+                slotBtn.style.cursor = 'not-allowed';
             } else {
+                // AVAILABLE SLOT: Make it clickable
                 slotBtn.addEventListener('click', () => selectTimeSlot(slot, slotBtn));
 
                 // If this slot matches the pre-selected slot, mark it as selected
@@ -337,7 +357,7 @@ async function loadAvailableSlots() {
             container.appendChild(slotBtn);
         });
     } catch (error) {
-        container.innerHTML = `<div class="facility-empty-state">${error.message}</div>`;
+        container.innerHTML = `<div class="facility-empty-state">Error: ${error.message}</div>`;
     }
 }
 
@@ -410,6 +430,71 @@ function closeBookingModal() {
     document.getElementById('summary-date').textContent = '-';
     document.getElementById('summary-time').textContent = '-';
     document.getElementById('time-slots-container').innerHTML = '';
+}
+
+/**
+ * Cancel Booking
+ * Cancels a booking (only future bookings can be cancelled)
+ */
+async function cancelBooking(bookingId) {
+    if (!confirm('Are you sure you want to cancel this booking?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('api/cancel-booking.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ booking_id: bookingId })
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || 'Failed to cancel booking');
+        }
+        
+        alert('Booking cancelled successfully');
+        location.reload();
+    } catch (error) {
+        alert('Failed to cancel: ' + error.message);
+    }
+}
+
+/**
+ * Validate date and load slots
+ * Checks if selected date is a public holiday before loading slots
+ */
+async function validateAndLoadSlots() {
+    const dateInput = document.getElementById('booking-date-picker');
+    const selectedDate = dateInput.value;
+    
+    if (!selectedDate) {
+        document.getElementById('time-slots-container').innerHTML = 
+            '<div class="facility-empty-state">Select a date to view available slots.</div>';
+        return;
+    }
+    
+    // Check if date is a public holiday
+    try {
+        const response = await fetch(`api/check-holiday.php?date=${encodeURIComponent(selectedDate)}`);
+        const data = await response.json();
+        
+        if (data.is_holiday) {
+            alert(`Cannot book on ${data.holiday_name}. Please select another date.`);
+            dateInput.value = '';
+            document.getElementById('time-slots-container').innerHTML = 
+                '<div class="facility-empty-state">Select a date to view available slots.</div>';
+            return;
+        }
+        
+        // If not a holiday, load available slots
+        loadAvailableSlots();
+    } catch (error) {
+        console.error('Holiday check error:', error);
+        // If holiday check fails, still try to load slots (API will validate)
+        loadAvailableSlots();
+    }
 }
 
 function setActiveFilter(filterType) {
@@ -495,7 +580,7 @@ function handleSuccessPopupClose() {
 document.addEventListener('DOMContentLoaded', function () {
     const datePicker = document.getElementById('booking-date-picker');
     if (datePicker) {
-        datePicker.addEventListener('change', loadAvailableSlots);
+        datePicker.addEventListener('change', validateAndLoadSlots);
     }
 
     document.querySelectorAll('.filter-tab').forEach(tab => {

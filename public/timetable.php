@@ -13,6 +13,8 @@ date_default_timezone_set('Asia/Kuala_Lumpur');
 $current_datetime = new DateTime();
 $formatted_date = $current_datetime->format('l, F d, Y');
 $formatted_time = $current_datetime->format('g:i A');
+$is_lecturer = ($_SESSION['role'] === 'staff');
+$is_admin = ($_SESSION['role'] === 'admin');
 
 ?>
 <!DOCTYPE html>
@@ -52,195 +54,77 @@ $formatted_time = $current_datetime->format('g:i A');
                 </div>
             </div>
         </div>
+
+        <?php if ($is_admin): ?>
+            <div class="card schedule-request-panel">
+                <div class="card-header">Schedule Change Requests</div>
+                <div id="scheduleRequestsContainer" class="schedule-request-list">
+                    <div class="schedule-empty-state">Loading schedule requests...</div>
+                </div>
+            </div>
+        <?php endif; ?>
     </div>
+
+    <?php if ($is_lecturer): ?>
+        <div id="scheduleRequestModal" class="schedule-request-modal hidden">
+            <div class="schedule-request-backdrop" onclick="closeScheduleRequestModal()"></div>
+            <div class="schedule-request-dialog">
+                <div class="schedule-request-header">
+                    <h3>Request Timetable Change</h3>
+                    <button type="button" class="schedule-request-close" onclick="closeScheduleRequestModal()">&times;</button>
+                </div>
+                <div class="schedule-request-body">
+                    <form id="scheduleRequestForm">
+                        <input type="hidden" id="requestSectionId" value="">
+                        <input type="hidden" id="requestDayOfWeek" value="">
+                        <input type="hidden" id="requestWeekStartDate" value="">
+                        <input type="hidden" id="requestWeekEndDate" value="">
+
+                        <div id="scheduleRequestSummary" class="schedule-request-summary"></div>
+                        <p class="schedule-request-note">Requests must be submitted at least 1 week before the target week.</p>
+
+                        <div class="schedule-request-grid">
+                            <div class="schedule-request-field" style="grid-column: 1 / -1;">
+                                <label for="requestClassDate">Requested Class Date</label>
+                                <input type="date" id="requestClassDate" required>
+                            </div>
+                            <div class="schedule-request-field">
+                                <label for="requestStartTime">Requested Start Time</label>
+                                <input type="time" id="requestStartTime" required>
+                            </div>
+                            <div class="schedule-request-field">
+                                <label for="requestEndTime">Requested End Time</label>
+                                <input type="time" id="requestEndTime" required>
+                            </div>
+                            <div class="schedule-request-field" style="grid-column: 1 / -1;">
+                                <label for="requestRoomId">Requested Classroom</label>
+                                <select id="requestRoomId" required></select>
+                            </div>
+                        </div>
+
+                        <div id="scheduleRequestMessage" class="schedule-request-message"></div>
+
+                        <div class="schedule-request-footer">
+                            <button type="button" class="btn-cancel-request" onclick="closeScheduleRequestModal()">Cancel</button>
+                            <button type="submit" id="submitScheduleRequestBtn" class="btn-submit-request">Submit Request</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
 
     <!-- Footer -->
     <?php include 'includes/footer.php'; ?>
 
     <script>
-        let availableWeeks = [];
-        let currentWeekIndex = -1;
-        const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-
-        function formatTime(timeStr) {
-            const [hours, minutes] = timeStr.split(':');
-            const hour = parseInt(hours, 10);
-            const ampm = hour >= 12 ? 'PM' : 'AM';
-            const displayHour = hour % 12 || 12;
-            return `${displayHour}:${minutes} ${ampm}`;
-        }
-
-        function toIsoDate(dateObj) {
-            const year = dateObj.getFullYear();
-            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-            const day = String(dateObj.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
-        }
-
-        function getCurrentMondayIso() {
-            const now = new Date();
-            const day = now.getDay(); // Sunday=0 ... Saturday=6
-            const diff = day === 0 ? -6 : 1 - day;
-            now.setDate(now.getDate() + diff);
-            now.setHours(0, 0, 0, 0);
-            return toIsoDate(now);
-        }
-
-        function updateButtonStates() {
-            const prevBtn = document.getElementById('prevWeekBtn');
-            const nextBtn = document.getElementById('nextWeekBtn');
-
-            const noWeeks = availableWeeks.length === 0 || currentWeekIndex < 0;
-            prevBtn.disabled = noWeeks || currentWeekIndex === 0;
-            nextBtn.disabled = noWeeks || currentWeekIndex >= availableWeeks.length - 1;
-        }
-
-        async function fetchAvailableWeeks() {
-            const response = await fetch('/api/get-available-weeks.php');
-            if (!response.ok) {
-                throw new Error('Failed to load available weeks.');
-            }
-
-            const data = await response.json();
-            if (!data.success) {
-                throw new Error(data.error || 'Failed to load available weeks.');
-            }
-
-            availableWeeks = Array.isArray(data.weeks) ? data.weeks : [];
-        }
-
-        function getInitialWeekIndex() {
-            if (availableWeeks.length === 0) {
-                return -1;
-            }
-
-            const currentMonday = getCurrentMondayIso();
-            const exactMatch = availableWeeks.findIndex(week => week.week_start_date === currentMonday || week.week_start === currentMonday);
-            if (exactMatch >= 0) {
-                return exactMatch;
-            }
-
-            return 0;
-        }
-
-        function renderWeekHeader(weekStart, weekEnd, isReleased) {
-            const weekStartObj = new Date(weekStart);
-            const weekEndObj = new Date(weekEnd);
-            const weekText = `${weekStartObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${weekEndObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
-            const releaseText = isReleased ? 'Released' : 'Pending Release';
-            document.getElementById('weekDisplay').textContent = `${weekText} (${releaseText})`;
-        }
-
-        function buildEmptyState(message) {
-            const safeMessage = message || 'No classes scheduled for this week.';
-            return `<p style="text-align: center; padding: 20px; color: #a0aec0;">${safeMessage}</p>`;
-        }
-
-        function buildTimetableHtml(data) {
-            let html = '';
-
-            days.forEach(day => {
-                if (!data.timetable[day] || data.timetable[day].length === 0) {
-                    return;
-                }
-
-                const dayDate = data.timetable[day][0].actual_date || data.week_start;
-                const formattedDate = new Date(dayDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit' });
-
-                html += `<div class="timetable-day">
-                    <div class="day-label">${day} (${formattedDate})</div>
-                    <div class="timetable-row timetable-head">
-                        <span>Subject Name</span>
-                        <span>Venue</span>
-                        <span>Time</span>
-                        <span>Lecturer Name</span>
-                    </div>`;
-
-                data.timetable[day].forEach(course => {
-                    html += `<div class="timetable-row">
-                        <div>
-                            <div class="subject-title">${course.course_name}</div>
-                            <div class="subject-code">${course.section_code}</div>
-                        </div>
-                        <span>${course.venue}</span>
-                        <span>${formatTime(course.start_time)} - ${formatTime(course.end_time)}</span>
-                        <span>${course.lecturer}</span>
-                    </div>`;
-                });
-
-                html += `</div>`;
-            });
-
-            return html || buildEmptyState(data.message);
-        }
-
-        async function loadTimetableByIndex(index) {
-            if (index < 0 || index >= availableWeeks.length) {
-                return;
-            }
-
-            const week = availableWeeks[index];
-            const weekStart = week.week_start_date || week.week_start;
-
-            try {
-                const response = await fetch(`/api/get-timetable.php?week_start=${encodeURIComponent(weekStart)}`);
-                if (!response.ok) {
-                    throw new Error('Failed to load timetable.');
-                }
-
-                const data = await response.json();
-                if (!data.success) {
-                    throw new Error(data.error || 'Failed to load timetable.');
-                }
-
-                currentWeekIndex = index;
-                renderWeekHeader(data.week_start, data.week_end, data.is_released);
-                document.getElementById('timetableContainer').innerHTML = buildTimetableHtml(data);
-                updateButtonStates();
-            } catch (error) {
-                console.error('Error loading timetable:', error);
-                document.getElementById('timetableContainer').innerHTML = `<p style="text-align: center; color: #e53e3e; padding: 20px; font-size: 0.95rem;">Error loading timetable: ${error.message}</p>`;
-                updateButtonStates();
-            }
-        }
-
-        async function initializeTimetable() {
-            try {
-                await fetchAvailableWeeks();
-
-                if (availableWeeks.length === 0) {
-                    document.getElementById('weekDisplay').textContent = 'No Available Weeks';
-                    document.getElementById('timetableContainer').innerHTML = buildEmptyState('No released timetable weeks are available yet.');
-                    updateButtonStates();
-                    return;
-                }
-
-                const initialIndex = getInitialWeekIndex();
-                await loadTimetableByIndex(initialIndex);
-            } catch (error) {
-                console.error('Initialization error:', error);
-                document.getElementById('weekDisplay').textContent = 'Error';
-                document.getElementById('timetableContainer').innerHTML = `<p style="text-align: center; color: #e53e3e; padding: 20px;">${error.message}</p>`;
-                updateButtonStates();
-            }
-        }
-
-        document.getElementById('prevWeekBtn').addEventListener('click', () => {
-            if (currentWeekIndex > 0) {
-                loadTimetableByIndex(currentWeekIndex - 1);
-            }
-        });
-
-        document.getElementById('nextWeekBtn').addEventListener('click', () => {
-            if (currentWeekIndex < availableWeeks.length - 1) {
-                loadTimetableByIndex(currentWeekIndex + 1);
-            }
-        });
-
-        initializeTimetable();
+        window.timetableConfig = {
+            isLecturer: <?php echo $is_lecturer ? 'true' : 'false'; ?>,
+            isAdmin: <?php echo $is_admin ? 'true' : 'false'; ?>
+        };
     </script>
 
     <script src="assets/js/header.js?v=<?php echo time(); ?>"></script>
-    <script src="assets/js/homepage.js?v=<?php echo time(); ?>"></script>
+    <script src="assets/js/timetable.js?v=<?php echo time(); ?>"></script>
 </body>
 </html>

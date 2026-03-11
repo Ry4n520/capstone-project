@@ -5,6 +5,21 @@
     flex-direction: column;
 }
 
+.timetable-empty-state,
+.schedule-empty-state {
+    text-align: center;
+    padding: 20px;
+    color: #a0aec0;
+}
+
+.timetable-error-state,
+.schedule-error-state {
+    text-align: center;
+    color: #e53e3e;
+    padding: 20px;
+    font-size: 0.95rem;
+}
+
 .week-navigation {
     margin-bottom: 1.5rem;
     display: flex;
@@ -108,6 +123,252 @@
     color: #718096;
 }
 
+.btn-request-change {
+    margin-top: 0.55rem;
+    border: none;
+    border-radius: 999px;
+    background: #dbeafe;
+    color: #1d4ed8;
+    cursor: pointer;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 0.35rem 0.7rem;
+}
+
+.btn-request-change:hover {
+    background: #bfdbfe;
+}
+
+.timetable-status {
+    display: inline-flex;
+    margin-left: 0.45rem;
+    border-radius: 999px;
+    padding: 0.15rem 0.45rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: capitalize;
+}
+
+.timetable-status.released {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.timetable-status.pending {
+    background: #fef3c7;
+    color: #b45309;
+}
+
+.schedule-request-panel {
+    margin-top: 1.5rem;
+}
+
+.schedule-request-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.schedule-request-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 1.25rem;
+    padding: 1.1rem 1.25rem;
+    border-bottom: 1px solid #edf2f7;
+}
+
+.schedule-request-item:last-child {
+    border-bottom: none;
+}
+
+.schedule-request-main {
+    min-width: 0;
+}
+
+.schedule-request-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #2d3748;
+}
+
+.schedule-request-meta,
+.schedule-request-change {
+    margin-top: 0.35rem;
+    color: #4a5568;
+    font-size: 0.88rem;
+}
+
+.schedule-request-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    align-items: flex-end;
+    justify-content: center;
+}
+
+.btn-approve-request,
+.btn-reject-request,
+.btn-submit-request,
+.btn-cancel-request {
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 700;
+    padding: 0.7rem 1rem;
+    transition: all 0.2s ease;
+}
+
+.btn-approve-request,
+.btn-submit-request {
+    background: #2563eb;
+    color: #ffffff;
+}
+
+.btn-approve-request:hover,
+.btn-submit-request:hover {
+    background: #1d4ed8;
+}
+
+.btn-reject-request,
+.btn-cancel-request {
+    background: #e2e8f0;
+    color: #334155;
+}
+
+.btn-reject-request:hover,
+.btn-cancel-request:hover {
+    background: #cbd5e1;
+}
+
+.schedule-request-modal.hidden {
+    display: none;
+}
+
+.schedule-request-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.schedule-request-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+}
+
+.schedule-request-dialog {
+    position: relative;
+    width: min(560px, 100%);
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.2);
+    overflow: hidden;
+}
+
+.schedule-request-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.schedule-request-header h3 {
+    margin: 0;
+    color: #1e293b;
+}
+
+.schedule-request-close {
+    border: none;
+    background: transparent;
+    color: #64748b;
+    cursor: pointer;
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
+.schedule-request-body {
+    padding: 1.25rem;
+}
+
+.schedule-request-summary {
+    border: 1px solid #dbeafe;
+    background: #f8fbff;
+    border-radius: 10px;
+    padding: 0.9rem 1rem;
+    color: #334155;
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
+.schedule-request-note {
+    margin: 0.85rem 0 0;
+    color: #b45309;
+    font-size: 0.85rem;
+}
+
+.schedule-request-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.schedule-request-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.schedule-request-field label {
+    color: #334155;
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+.schedule-request-field input,
+.schedule-request-field select {
+    width: 100%;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 0.72rem 0.8rem;
+    font-size: 0.94rem;
+    color: #0f172a;
+}
+
+.schedule-request-field input:focus,
+.schedule-request-field select:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.schedule-request-message {
+    min-height: 1.35rem;
+    margin-top: 1rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+}
+
+.schedule-request-message.success {
+    color: #15803d;
+}
+
+.schedule-request-message.error {
+    color: #dc2626;
+}
+
+.schedule-request-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
 /* Tablet/iPad (768px to 1024px) */
 @media screen and (max-width: 1024px) {
     .timetable-row {
@@ -127,6 +388,18 @@
 
 /* Mobile (less than 768px) */
 @media screen and (max-width: 768px) {
+    .schedule-request-item {
+        flex-direction: column;
+    }
+
+    .schedule-request-actions {
+        align-items: stretch;
+    }
+
+    .schedule-request-grid {
+        grid-template-columns: 1fr;
+    }
+
     .timetable-row {
         grid-template-columns: 1fr 0.8fr;
         gap: 0.5rem;
@@ -159,6 +432,14 @@
 
 /* Extra small screens (less than 480px) */
 @media screen and (max-width: 480px) {
+    .schedule-request-dialog {
+        width: 100%;
+    }
+
+    .schedule-request-footer {
+        flex-direction: column;
+    }
+
     .timetable-card {
         padding: 0.5rem;
     }

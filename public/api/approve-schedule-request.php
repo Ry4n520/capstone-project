@@ -117,6 +117,19 @@ try {
     $month_label = $week_start->format('F');
     $week_label = $week_start->format('M j') . ' - ' . $week_end->format('M j');
 
+    $section_stmt = $pdo->prepare(
+        'SELECT lecturer_id FROM course_sections WHERE section_id = :section_id LIMIT 1'
+    );
+    $section_stmt->execute([':section_id' => $request['section_id']]);
+    $lecturer_id = $section_stmt->fetchColumn();
+
+    if ($lecturer_id === false) {
+        $pdo->rollBack();
+        http_response_code(404);
+        echo json_encode(['error' => 'The request section no longer exists.']);
+        exit;
+    }
+
     $existing_slot_stmt = $pdo->prepare(
         'SELECT timetable_id, status
          FROM timetables
@@ -133,6 +146,82 @@ try {
     ]);
 
     $existing_slot = $existing_slot_stmt->fetch(PDO::FETCH_ASSOC);
+
+    $room_conflict_stmt = $pdo->prepare(
+        'SELECT c.course_name, cs.section_code
+         FROM timetables t
+         INNER JOIN course_sections cs ON t.section_id = cs.section_id
+         INNER JOIN courses c ON cs.course_id = c.course_id
+         WHERE t.room_id = :room_id
+           AND t.week_start_date = :week_start_date
+           AND t.day_of_week = :day_of_week
+           AND t.section_id <> :section_id
+           AND t.start_time < :end_time
+           AND t.end_time > :start_time
+         LIMIT 1'
+    );
+    $room_conflict_stmt->execute([
+        ':room_id' => $request['room_id'],
+        ':week_start_date' => $request['week_start_date'],
+        ':day_of_week' => $request['day_of_week'],
+        ':section_id' => $request['section_id'],
+        ':start_time' => $request['start_time'],
+        ':end_time' => $request['end_time']
+    ]);
+    $room_conflict = $room_conflict_stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($room_conflict) {
+        $pdo->rollBack();
+        http_response_code(409);
+        echo json_encode([
+            'error' => 'The requested classroom is already occupied during that time by ' . $room_conflict['course_name'] . ' (' . $room_conflict['section_code'] . ').'
+        ]);
+        exit;
+    }
+
+    $lecturer_conflict_stmt = $pdo->prepare(
+        'SELECT c.course_name, cs.section_code
+         FROM timetables t
+         INNER JOIN course_sections cs ON t.section_id = cs.section_id
+         INNER JOIN courses c ON cs.course_id = c.course_id
+         WHERE cs.lecturer_id = :lecturer_id
+           AND t.week_start_date = :week_start_date
+           AND t.day_of_week = :day_of_week
+           AND t.section_id <> :section_id
+           AND t.start_time < :end_time
+           AND t.end_time > :start_time
+         LIMIT 1'
+    );
+    $lecturer_conflict_stmt->execute([
+        ':lecturer_id' => (int) $lecturer_id,
+        ':week_start_date' => $request['week_start_date'],
+        ':day_of_week' => $request['day_of_week'],
+        ':section_id' => $request['section_id'],
+        ':start_time' => $request['start_time'],
+        ':end_time' => $request['end_time']
+    ]);
+    $lecturer_conflict = $lecturer_conflict_stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($lecturer_conflict) {
+        $pdo->rollBack();
+        http_response_code(409);
+        echo json_encode([
+            'error' => 'The lecturer already has another class at that time: ' . $lecturer_conflict['course_name'] . ' (' . $lecturer_conflict['section_code'] . ').'
+        ]);
+        exit;
+    }
+
+    $week_release_stmt = $pdo->prepare(
+        'SELECT COUNT(*)
+         FROM timetables
+         WHERE week_start_date = :week_start_date
+           AND status = :status'
+    );
+    $week_release_stmt->execute([
+        ':week_start_date' => $request['week_start_date'],
+        ':status' => 'released'
+    ]);
+    $week_has_released_rows = ((int) $week_release_stmt->fetchColumn()) > 0;
 
     if ($existing_slot) {
         $target_status = ($existing_slot['status'] === 'released') ? 'released' : 'pending';
@@ -202,7 +291,7 @@ try {
             ':day_of_week' => $request['day_of_week'],
             ':start_time' => $request['start_time'],
             ':end_time' => $request['end_time'],
-            ':status' => 'pending',
+            ':status' => $week_has_released_rows ? 'released' : 'pending',
             ':created_by' => $admin_user_id
         ]);
     }

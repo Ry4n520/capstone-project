@@ -179,13 +179,26 @@ function booking_status_badge($status)
                             $booking_date_iso = $booking['booking_date'];
                             $booking_date_readable = date('F d, Y', strtotime($booking_date_iso));
                             $time_range = date('g:i A', strtotime($booking['start_time'])) . ' - ' . date('g:i A', strtotime($booking['end_time']));
+                            
+                            // Check if booking is in the future
+                            $booking_datetime = strtotime($booking_date_iso . ' ' . $booking['start_time']);
+                            $is_future_booking = $booking_datetime >= time();
                             ?>
                             <tr data-booking-date="<?php echo e($booking_date_iso); ?>">
                                 <td><?php echo e($booking['facility_name']); ?></td>
                                 <td><?php echo e($booking_date_readable); ?></td>
                                 <td><?php echo e($time_range); ?></td>
                                 <td><?php echo booking_status_badge($booking['booking_status']); ?></td>
-                                <td><button class="action-btn btn-cancel" disabled>Cancel</button></td>
+                                <td>
+                                    <?php if ($is_future_booking): ?>
+                                        <button class="action-btn btn-cancel" 
+                                                onclick="cancelBooking(<?php echo e($booking['booking_id']); ?>)">
+                                            Cancel
+                                        </button>
+                                    <?php else: ?>
+                                        <button class="action-btn btn-cancel" disabled>Cancel</button>
+                                    <?php endif; ?>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                     <?php endif; ?>

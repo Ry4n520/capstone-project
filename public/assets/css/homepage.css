@@ -242,6 +242,32 @@ body {
     font-size: 0.75rem;
 }
 
+.view-all-link {
+    display: block;
+    text-align: center;
+    padding: 1rem;
+    color: #667eea;
+    text-decoration: none;
+    font-weight: 500;
+    border-top: 1px solid #f7fafc;
+    margin-top: 1rem;
+    transition: all 0.2s;
+}
+
+.view-all-link:hover {
+    background: #f7fafc;
+    color: #764ba2;
+}
+
+.announcement-item {
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.announcement-item:hover {
+    background: #f7fafc;
+}
+
 .view-all {
     color: #667eea;
     text-decoration: none;

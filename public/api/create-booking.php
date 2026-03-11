@@ -1,6 +1,9 @@
 <?php
 /**
- * Creates facility booking with conflict prevention.
+ * Creates facility booking with STRICT double-booking prevention.
+ * 
+ * Prevents ANY user from booking an already-booked time slot.
+ * Uses transactions to ensure consistency.
  */
 
 header('Content-Type: application/json');
@@ -37,9 +40,9 @@ $bookingDate = isset($input['booking_date']) ? trim((string) $input['booking_dat
 $startTime = isset($input['start_time']) ? trim((string) $input['start_time']) : '';
 $endTime = isset($input['end_time']) ? trim((string) $input['end_time']) : '';
 
-// Log input for debugging
 error_log("Booking Request: facility_id=$facilityId, date=$bookingDate, start=$startTime, end=$endTime");
 
+// Validate inputs
 $dateObj = DateTimeImmutable::createFromFormat('Y-m-d', $bookingDate);
 if ($facilityId <= 0 || !$dateObj || $dateObj->format('Y-m-d') !== $bookingDate) {
     http_response_code(400);
@@ -53,14 +56,12 @@ if (!$startTime || !$endTime) {
     exit;
 }
 
-// Validate time format (HH:MM:SS)
 if (!preg_match('/^\d{2}:\d{2}:\d{2}$/', $startTime) || !preg_match('/^\d{2}:\d{2}:\d{2}$/', $endTime)) {
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'Invalid time format. Expected HH:MM:SS.']);
     exit;
 }
 
-// Verify start time is before end time
 if ($startTime >= $endTime) {
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'Start time must be before end time.']);
@@ -73,6 +74,28 @@ if ($dateObj < $today || $dateObj > $maxDate) {
     http_response_code(422);
     echo json_encode(['success' => false, 'message' => 'Bookings are allowed from today up to 30 days ahead.']);
     exit;
+}
+
+// Check public holiday
+$holiday_check = "SELECT holiday_name FROM public_holidays WHERE holiday_date = :date";
+$holiday_stmt = $pdo->prepare($holiday_check);
+$holiday_stmt->execute([':date' => $bookingDate]);
+$holiday = $holiday_stmt->fetch(PDO::FETCH_ASSOC);
+
+if ($holiday) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'message' => 'Cannot book on ' . $holiday['holiday_name']]);
+    exit;
+}
+
+// Check if time is in the past (for same-day bookings)
+if ($dateObj->format('Y-m-d') === $today->format('Y-m-d')) {
+    $current_time = date('H:i:s');
+    if ($startTime <= $current_time) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'message' => 'Cannot book past time slots']);
+        exit;
+    }
 }
 
 $allowedSlots = facility_booking_slots();
@@ -93,13 +116,12 @@ if (!$requestedSlotAllowed) {
 $bookingStatus = ($dateObj->format('Y-m-d') === $today->format('Y-m-d')) ? 'confirmed' : 'pending';
 
 try {
+    // START TRANSACTION for atomicity
     $pdo->beginTransaction();
 
+    // 1. Verify facility exists
     $facilityStmt = $pdo->prepare(
-        'SELECT facility_id
-         FROM facilities
-         WHERE facility_id = :facility_id
-         LIMIT 1'
+        'SELECT facility_id FROM facilities WHERE facility_id = :facility_id LIMIT 1'
     );
     $facilityStmt->execute([':facility_id' => $facilityId]);
 
@@ -110,31 +132,41 @@ try {
         exit;
     }
 
-    $existingStmt = $pdo->prepare(
-        'SELECT booking_id
-         FROM bookings
-         WHERE facility_id = :facility_id
-           AND booking_date = :booking_date
-           AND booking_status IN (\'confirmed\', \'pending\')
-           AND (
-               (start_time < :slot_end AND end_time > :slot_start)
-           )'
-    );
-
-    $existingStmt->execute([
+    // 2. CRITICAL: Check for STRICT conflicts - ANY user, ANY overlap
+    // This is the key difference: we check if ANY user has booked this time
+    $conflict_query = "
+        SELECT b.booking_id 
+        FROM bookings b
+        WHERE b.facility_id = :facility_id 
+        AND b.booking_date = :booking_date
+        AND b.booking_status IN ('confirmed', 'pending')
+        AND (
+            -- Check for ANY time overlap
+            (b.start_time < :end_time AND b.end_time > :start_time)
+        )
+        LIMIT 1
+    ";
+    
+    $conflictStmt = $pdo->prepare($conflict_query);
+    $conflictStmt->execute([
         ':facility_id' => $facilityId,
         ':booking_date' => $bookingDate,
-        ':slot_start' => $startTime,
-        ':slot_end' => $endTime
+        ':start_time' => $startTime,
+        ':end_time' => $endTime
     ]);
 
-    if ($existingStmt->fetch()) {
+    if ($conflictStmt->fetch()) {
         $pdo->rollBack();
         http_response_code(409);
-        echo json_encode(['success' => false, 'message' => 'Selected time slot is no longer available.']);
+        echo json_encode([
+            'success' => false,
+            'message' => 'This time slot is already booked. Please select another slot.',
+            'conflict' => true
+        ]);
         exit;
     }
 
+    // 3. Create the booking (only if NO conflicts exist)
     $insertStmt = $pdo->prepare(
         'INSERT INTO bookings (
             user_id,
@@ -168,10 +200,11 @@ try {
     http_response_code(201);
     echo json_encode([
         'success' => true,
-        'message' => $bookingStatus === 'confirmed' ? 'Booking confirmed!' : 'Booking submitted and pending confirmation.',
+        'message' => $bookingStatus === 'confirmed' ? 'Booking confirmed successfully!' : 'Booking submitted and pending confirmation.',
         'booking_id' => $bookingId,
         'status' => $bookingStatus
     ], JSON_PRETTY_PRINT);
+
 } catch (Throwable $e) {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
@@ -182,8 +215,7 @@ try {
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'message' => 'Server error: ' . $e->getMessage(),
-        'error' => $e->getMessage()
+        'message' => 'Server error occurred. Please try again.'
     ]);
 }
 ?>
