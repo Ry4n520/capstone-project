@@ -1,5 +1,24 @@
 <?php
 $current_page = basename($_SERVER['PHP_SELF']);
+$current_role = $user_role ?? ($_SESSION['role'] ?? '');
+$is_admin_nav = ($current_role === 'admin');
+
+$default_nav_links = [
+    ['href' => 'timetable.php', 'label' => 'Timetable'],
+    ['href' => 'attendance.php', 'label' => 'Attendance'],
+    ['href' => 'facility-booking.php', 'label' => 'Facility Booking'],
+    ['href' => 'announcements.php', 'label' => 'Announcements']
+];
+
+$admin_nav_links = [
+    ['href' => 'user-management.php', 'label' => 'User Management'],
+    ['href' => 'class-scheduling.php', 'label' => 'Class Scheduling'],
+    ['href' => 'attendance.php', 'label' => 'Attendance'],
+    ['href' => 'facility-booking.php', 'label' => 'Facility Booking'],
+    ['href' => 'announcements.php', 'label' => 'Announcements']
+];
+
+$nav_links = $is_admin_nav ? $admin_nav_links : $default_nav_links;
 ?>
 
 <!-- Navigation Bar -->
@@ -10,11 +29,12 @@ $current_page = basename($_SERVER['PHP_SELF']);
     </a>
 
     <!-- Center Navigation Links -->
-    <ul class="nav-center">
-        <li><a href="timetable.php">Timetable</a></li>
-        <li><a href="attendance.php">Attendance</a></li>
-        <li><a href="facility-booking.php">Facility Booking</a></li>
-        <li><a href="announcements.php">Announcements</a></li>
+    <ul class="nav-center<?php echo $is_admin_nav ? ' nav-center-admin' : ''; ?>">
+        <?php foreach ($nav_links as $link): ?>
+            <li>
+                <a href="<?php echo htmlspecialchars($link['href']); ?>"><?php echo htmlspecialchars($link['label']); ?></a>
+            </li>
+        <?php endforeach; ?>
     </ul>
 
     <!-- Right Navigation Icons & Links -->
@@ -33,6 +53,9 @@ $current_page = basename($_SERVER['PHP_SELF']);
                 </div>
                 <div class="announcements-list" id="announcements-list">
                     <div class="loading-state">Loading...</div>
+                </div>
+                <div class="view-all-container">
+                    <a href="announcements.php" class="view-all-announcements-btn">View All Announcements</a>
                 </div>
             </div>
         </div>

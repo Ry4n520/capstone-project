@@ -17,6 +17,8 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
+$is_admin = isset($_SESSION['role']) && $_SESSION['role'] === 'admin';
+
 require_once __DIR__ . '/../config/db.php';
 
 // Get JSON input
@@ -30,20 +32,28 @@ if ($booking_id <= 0) {
 }
 
 try {
-    // Verify booking belongs to user and fetch booking details
-    $check_query = "SELECT booking_id, booking_date, start_time, booking_status 
-                    FROM bookings 
-                    WHERE booking_id = :booking_id AND user_id = :user_id";
+    // Verify booking exists (admins can manage all; non-admins can only manage their own).
+    $check_query = "SELECT booking_id, user_id, booking_date, start_time, booking_status
+                    FROM bookings
+                    WHERE booking_id = :booking_id";
+
+    if (!$is_admin) {
+        $check_query .= " AND user_id = :user_id";
+    }
+
     $stmt = $pdo->prepare($check_query);
-    $stmt->execute([
-        ':booking_id' => $booking_id, 
-        ':user_id' => $_SESSION['user_id']
-    ]);
+
+    $params = [':booking_id' => $booking_id];
+    if (!$is_admin) {
+        $params[':user_id'] = $_SESSION['user_id'];
+    }
+
+    $stmt->execute($params);
     $booking = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$booking) {
         http_response_code(404);
-        echo json_encode(['success' => false, 'message' => 'Booking not found or unauthorized']);
+        echo json_encode(['success' => false, 'message' => 'Booking not found or unauthorized.']);
         exit;
     }
 
@@ -54,11 +64,11 @@ try {
         exit;
     }
 
-    // Check if booking is in the future (can't cancel past bookings)
+    // Non-admin users can only cancel future bookings.
     $booking_datetime = $booking['booking_date'] . ' ' . $booking['start_time'];
-    if (strtotime($booking_datetime) < time()) {
+    if (!$is_admin && strtotime($booking_datetime) < time()) {
         http_response_code(400);
-        echo json_encode(['success' => false, 'message' => 'Cannot cancel past bookings']);
+        echo json_encode(['success' => false, 'message' => 'Cannot cancel past bookings.']);
         exit;
     }
 

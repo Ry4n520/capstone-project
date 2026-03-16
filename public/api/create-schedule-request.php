@@ -49,6 +49,7 @@ function get_input_data()
 
 $input = get_input_data();
 
+$timetable_id = isset($input['timetable_id']) ? (int) $input['timetable_id'] : 0;
 $section_id = isset($input['section_id']) ? (int) $input['section_id'] : 0;
 $room_id = isset($input['room_id']) ? (int) $input['room_id'] : 0;
 $class_date_raw = isset($input['class_date']) ? trim((string) $input['class_date']) : '';
@@ -139,6 +140,12 @@ if ($request_date > $deadline) {
 try {
     $lecturer_id = (int) $_SESSION['user_id'];
 
+    if ($timetable_id <= 0) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Missing timetable_id for the original class slot.']);
+        exit;
+    }
+
     $room_stmt = $pdo->prepare(
         'SELECT room_id FROM classrooms WHERE room_id = :room_id LIMIT 1'
     );
@@ -162,6 +169,25 @@ try {
     if (!$section_stmt->fetch()) {
         http_response_code(403);
         echo json_encode(['error' => 'You are not assigned to this section.']);
+        exit;
+    }
+
+    $source_timetable_stmt = $pdo->prepare(
+        'SELECT timetable_id, section_id, room_id, day_of_week, week_start_date, week_end_date, start_time, end_time
+         FROM timetables
+         WHERE timetable_id = :timetable_id
+           AND section_id = :section_id
+         LIMIT 1'
+    );
+    $source_timetable_stmt->execute([
+        ':timetable_id' => $timetable_id,
+        ':section_id' => $section_id,
+    ]);
+    $source_timetable = $source_timetable_stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$source_timetable) {
+        http_response_code(404);
+        echo json_encode(['error' => 'The original timetable slot could not be found.']);
         exit;
     }
 
@@ -206,21 +232,31 @@ try {
 
     $insert_stmt = $pdo->prepare(
         'INSERT INTO schedule_requests (
+            source_timetable_id,
             section_id,
             room_id,
+            original_room_id,
+            original_day_of_week,
             day_of_week,
             week_start_date,
             week_end_date,
+            original_start_time,
+            original_end_time,
             start_time,
             end_time,
             status,
             requested_at
         ) VALUES (
+            :source_timetable_id,
             :section_id,
             :room_id,
+            :original_room_id,
+            :original_day_of_week,
             :day_of_week,
             :week_start_date,
             :week_end_date,
+            :original_start_time,
+            :original_end_time,
             :start_time,
             :end_time,
             :status,
@@ -229,11 +265,16 @@ try {
     );
 
     $insert_stmt->execute([
+        ':source_timetable_id' => (int) $source_timetable['timetable_id'],
         ':section_id' => $section_id,
         ':room_id' => $room_id,
+        ':original_room_id' => (int) $source_timetable['room_id'],
+        ':original_day_of_week' => $source_timetable['day_of_week'],
         ':day_of_week' => $day_of_week,
         ':week_start_date' => $week_start_date->format('Y-m-d'),
         ':week_end_date' => $week_end_date->format('Y-m-d'),
+        ':original_start_time' => $source_timetable['start_time'],
+        ':original_end_time' => $source_timetable['end_time'],
         ':start_time' => $start_time,
         ':end_time' => $end_time,
         ':status' => 'pending'

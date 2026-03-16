@@ -417,6 +417,7 @@ async function submitScheduleRequest(event) {
     }
 
     const payload = {
+        timetable_id: Number(form.dataset.timetableId || 0),
         section_id: Number(document.getElementById('requestSectionId').value || 0),
         room_id: Number(document.getElementById('requestRoomId').value || 0),
         class_date: dateDetails.classDate,
@@ -481,6 +482,7 @@ function renderScheduleRequests(requests) {
     }
 
     container.innerHTML = requests.map((request) => {
+        const currentDay = request.current_day_of_week || request.day_of_week;
         const currentRoom = request.current_room_name
             ? `${request.current_room_name}${request.current_building ? ` (${request.current_building})` : ''}`
             : 'No existing room';
@@ -496,7 +498,7 @@ function renderScheduleRequests(requests) {
                     <div class="schedule-request-title">${escapeHtml(request.course_name)} (${escapeHtml(request.section_code)})</div>
                     <div class="schedule-request-meta">Lecturer: ${escapeHtml(request.lecturer_name)}</div>
                     <div class="schedule-request-meta">Week: ${escapeHtml(formatDateShort(request.week_start_date))} - ${escapeHtml(formatDateShort(request.week_end_date))}</div>
-                    <div class="schedule-request-change"><strong>Current:</strong> ${escapeHtml(request.day_of_week)} | ${escapeHtml(currentTime)} | ${escapeHtml(currentRoom)}</div>
+                    <div class="schedule-request-change"><strong>Current:</strong> ${escapeHtml(currentDay)} | ${escapeHtml(currentTime)} | ${escapeHtml(currentRoom)}</div>
                     <div class="schedule-request-change"><strong>Requested:</strong> ${escapeHtml(request.day_of_week)} | ${escapeHtml(requestedTime)} | ${escapeHtml(requestedRoom)}</div>
                     <div class="schedule-request-meta">Submitted: ${escapeHtml(formatDateTime(request.requested_at))}</div>
                 </div>

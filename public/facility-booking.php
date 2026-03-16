@@ -19,6 +19,7 @@ $formatted_time = $current_datetime->format('g:i A');
 $today_iso = $current_datetime->format('Y-m-d');
 $tomorrow_iso = (clone $current_datetime)->modify('+1 day')->format('Y-m-d');
 $max_advance_iso = (clone $current_datetime)->modify('+30 days')->format('Y-m-d');
+$is_admin_user = ($user_role === 'admin');
 
 // Category count = facilities with at least one available slot today.
 $category_counts = [
@@ -27,29 +28,47 @@ $category_counts = [
     'sport_facility' => facility_booking_available_facility_count($pdo, 'sport_facility', $today_iso)
 ];
 
-$my_bookings_stmt = $pdo->prepare(
-    'SELECT
+$bookings_query = '
+    SELECT
         b.booking_id,
+        b.user_id,
+        b.facility_id,
         f.facility_name,
         f.location,
         b.booking_date,
         b.start_time,
         b.end_time,
-        b.booking_status
-     FROM bookings b
-     JOIN facilities f ON b.facility_id = f.facility_id
-     WHERE b.user_id = :user_id
-       AND b.booking_status != :cancelled_status
-     ORDER BY b.booking_date ASC, b.start_time ASC'
-);
+        b.booking_status,
+        u.name AS booked_by_name,
+        u.email AS booked_by_email
+    FROM bookings b
+    JOIN facilities f ON b.facility_id = f.facility_id
+    JOIN users u ON b.user_id = u.user_id
+';
 
-$my_bookings_stmt->execute([
-    ':user_id' => $user_id,
-    ':cancelled_status' => 'cancelled'
-]);
+if ($is_admin_user) {
+    $bookings_stmt = $pdo->query($bookings_query . ' ORDER BY b.booking_date ASC, b.start_time ASC');
+} else {
+    $bookings_stmt = $pdo->prepare(
+        $bookings_query . '
+         WHERE b.user_id = :user_id
+           AND b.booking_status != :cancelled_status
+         ORDER BY b.booking_date ASC, b.start_time ASC'
+    );
 
-$my_bookings = $my_bookings_stmt->fetchAll(PDO::FETCH_ASSOC);
-$active_bookings_count = count($my_bookings);
+    $bookings_stmt->execute([
+        ':user_id' => $user_id,
+        ':cancelled_status' => 'cancelled'
+    ]);
+}
+
+$bookings = $bookings_stmt->fetchAll(PDO::FETCH_ASSOC);
+$bookings_count = count($bookings);
+
+$booking_card_title = $is_admin_user ? 'View All Bookings' : 'View My Bookings';
+$booking_card_count_label = $is_admin_user ? 'bookings in system' : 'active bookings';
+$bookings_section_title = $is_admin_user ? 'All Bookings' : 'My Bookings';
+$bookings_empty_message = $is_admin_user ? 'No bookings found in the system.' : 'No bookings found.';
 
 function e($value)
 {
@@ -124,8 +143,8 @@ function booking_status_badge($status)
                 <!-- View Bookings -->
                 <div class="category-card booking-accent" onclick="showMyBookings()">
                     <div class="category-icon">📅</div>
-                    <div class="category-name">View My Bookings</div>
-                    <div class="category-count"><?php echo e($active_bookings_count); ?> active bookings</div>
+                    <div class="category-name"><?php echo e($booking_card_title); ?></div>
+                    <div class="category-count"><?php echo e($bookings_count); ?> <?php echo e($booking_card_count_label); ?></div>
                     <span class="category-badge">View All</span>
                 </div>
             </div>
@@ -135,7 +154,12 @@ function booking_status_badge($status)
         <div id="facilityView" class="facility-section hidden">
             <div class="section-header">
                 <h2 class="section-title">Sport Facilities</h2>
-                <button class="back-btn" onclick="showCategories()">← Back to Categories</button>
+                <div class="section-header-actions">
+                    <?php if ($is_admin_user): ?>
+                        <button type="button" class="admin-add-btn" onclick="openAdminFacilityModal()">+ Add Facility</button>
+                    <?php endif; ?>
+                    <button class="back-btn" onclick="showCategories()">← Back to Categories</button>
+                </div>
             </div>
 
             <div id="facilityGrid" class="facility-grid">
@@ -146,7 +170,7 @@ function booking_status_badge($status)
         <!-- My Bookings View (Hidden by default) -->
         <div id="bookingsView" class="facility-section hidden">
             <div class="section-header">
-                <h2 class="section-title">My Bookings</h2>
+                <h2 class="section-title"><?php echo e($bookings_section_title); ?></h2>
                 <button class="back-btn" onclick="showCategories()">← Back to Categories</button>
             </div>
 
@@ -162,6 +186,9 @@ function booking_status_badge($status)
                 <thead>
                     <tr>
                         <th>Facility</th>
+                        <?php if ($is_admin_user): ?>
+                            <th>Booked By</th>
+                        <?php endif; ?>
                         <th>Date</th>
                         <th>Time</th>
                         <th>Status</th>
@@ -169,12 +196,12 @@ function booking_status_badge($status)
                     </tr>
                 </thead>
                 <tbody>
-                    <?php if (count($my_bookings) === 0): ?>
+                    <?php if (count($bookings) === 0): ?>
                         <tr class="bookings-empty-row">
-                            <td colspan="5" class="bookings-empty">No bookings found.</td>
+                            <td colspan="<?php echo $is_admin_user ? '6' : '5'; ?>" class="bookings-empty"><?php echo e($bookings_empty_message); ?></td>
                         </tr>
                     <?php else: ?>
-                        <?php foreach ($my_bookings as $booking): ?>
+                        <?php foreach ($bookings as $booking): ?>
                             <?php
                             $booking_date_iso = $booking['booking_date'];
                             $booking_date_readable = date('F d, Y', strtotime($booking_date_iso));
@@ -183,20 +210,61 @@ function booking_status_badge($status)
                             // Check if booking is in the future
                             $booking_datetime = strtotime($booking_date_iso . ' ' . $booking['start_time']);
                             $is_future_booking = $booking_datetime >= time();
+                            $is_cancelled = strtolower((string) $booking['booking_status']) === 'cancelled';
                             ?>
-                            <tr data-booking-date="<?php echo e($booking_date_iso); ?>">
+                            <tr
+                                id="booking-row-<?php echo e($booking['booking_id']); ?>"
+                                data-booking-id="<?php echo e($booking['booking_id']); ?>"
+                                data-facility-id="<?php echo e($booking['facility_id']); ?>"
+                                data-facility-name="<?php echo e($booking['facility_name']); ?>"
+                                data-booking-date="<?php echo e($booking_date_iso); ?>"
+                                data-start-time="<?php echo e($booking['start_time']); ?>"
+                                data-end-time="<?php echo e($booking['end_time']); ?>"
+                                data-booking-status="<?php echo e($booking['booking_status']); ?>"
+                            >
                                 <td><?php echo e($booking['facility_name']); ?></td>
+                                <?php if ($is_admin_user): ?>
+                                    <td>
+                                        <div class="booking-user-name"><?php echo e($booking['booked_by_name']); ?></div>
+                                        <div class="booking-user-email"><?php echo e($booking['booked_by_email']); ?></div>
+                                    </td>
+                                <?php endif; ?>
                                 <td><?php echo e($booking_date_readable); ?></td>
                                 <td><?php echo e($time_range); ?></td>
                                 <td><?php echo booking_status_badge($booking['booking_status']); ?></td>
                                 <td>
-                                    <?php if ($is_future_booking): ?>
-                                        <button class="action-btn btn-cancel" 
-                                                onclick="cancelBooking(<?php echo e($booking['booking_id']); ?>)">
-                                            Cancel
-                                        </button>
+                                    <?php if ($is_admin_user): ?>
+                                        <div class="bookings-action-group">
+                                            <button
+                                                class="action-btn btn-cancel"
+                                                onclick="cancelBooking(<?php echo e($booking['booking_id']); ?>)"
+                                                <?php echo (!$is_future_booking || $is_cancelled) ? 'disabled' : ''; ?>
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button
+                                                class="action-btn btn-edit"
+                                                onclick="openEditBookingModal(<?php echo e($booking['booking_id']); ?>)"
+                                                <?php echo $is_cancelled ? 'disabled' : ''; ?>
+                                            >
+                                                Edit
+                                            </button>
+                                            <button
+                                                class="action-btn btn-delete"
+                                                onclick="deleteBooking(<?php echo e($booking['booking_id']); ?>)"
+                                            >
+                                                Delete
+                                            </button>
+                                        </div>
                                     <?php else: ?>
-                                        <button class="action-btn btn-cancel" disabled>Cancel</button>
+                                        <?php if ($is_future_booking): ?>
+                                            <button class="action-btn btn-cancel" 
+                                                    onclick="cancelBooking(<?php echo e($booking['booking_id']); ?>)">
+                                                Cancel
+                                            </button>
+                                        <?php else: ?>
+                                            <button class="action-btn btn-cancel" disabled>Cancel</button>
+                                        <?php endif; ?>
                                     <?php endif; ?>
                                 </td>
                             </tr>
@@ -206,6 +274,42 @@ function booking_status_badge($status)
             </table>
         </div>
     </div>
+
+    <?php if ($is_admin_user): ?>
+    <div id="editBookingModal" class="booking-modal hidden">
+        <div class="modal-backdrop" onclick="closeEditBookingModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit Booking</h3>
+                <button class="modal-close" onclick="closeEditBookingModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="booking-summary">
+                    <p><strong>Facility:</strong> <span id="editBookingFacilityName">-</span></p>
+                </div>
+
+                <label for="edit-booking-date">Date</label>
+                <input type="date" id="edit-booking-date" min="<?php echo e($today_iso); ?>" max="<?php echo e($max_advance_iso); ?>">
+
+                <div class="edit-booking-time-grid">
+                    <div>
+                        <label for="edit-booking-start">Start Time</label>
+                        <input type="time" id="edit-booking-start" step="60">
+                    </div>
+                    <div>
+                        <label for="edit-booking-end">End Time</label>
+                        <input type="time" id="edit-booking-end" step="60">
+                    </div>
+                </div>
+
+                <div class="admin-facility-actions">
+                    <button type="button" class="admin-cancel-btn" onclick="closeEditBookingModal()">Cancel</button>
+                    <button type="button" class="admin-post-btn" onclick="submitBookingEdit()">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
 
     <div id="bookingModal" class="booking-modal hidden">
         <div class="modal-backdrop" onclick="closeBookingModal()"></div>
@@ -250,6 +354,56 @@ function booking_status_badge($status)
         </div>
     </div>
 
+    <?php if ($is_admin_user): ?>
+    <div id="adminFacilityModal" class="admin-facility-modal hidden">
+        <div class="admin-facility-backdrop" onclick="closeAdminFacilityModal()"></div>
+        <div class="admin-facility-content">
+            <div class="admin-facility-header">
+                <h3>Add New Facility</h3>
+                <button type="button" class="admin-facility-close" onclick="closeAdminFacilityModal()">&times;</button>
+            </div>
+            <form id="adminFacilityForm" class="admin-facility-form" onsubmit="return false;">
+                <div class="admin-facility-grid">
+                    <label>
+                        Facility Name
+                        <input type="text" placeholder="e.g. Innovation Lab A" />
+                    </label>
+                    <label>
+                        Category
+                        <select>
+                            <option value="classroom">Classroom</option>
+                            <option value="meeting_room">Meeting Room</option>
+                            <option value="sport_facility">Sport Facility</option>
+                        </select>
+                    </label>
+                    <label>
+                        Location
+                        <input type="text" placeholder="e.g. Block B, Level 2" />
+                    </label>
+                    <label>
+                        Capacity
+                        <input type="number" min="1" placeholder="e.g. 30" />
+                    </label>
+                </div>
+                <label class="admin-facility-full-width">
+                    Notes
+                    <textarea rows="3" placeholder="Optional notes for this facility."></textarea>
+                </label>
+                <div class="admin-facility-checkbox-row">
+                    <label class="admin-facility-checkbox">
+                        <input type="checkbox" />
+                        <span>Set this facility as unavailable for student booking</span>
+                    </label>
+                </div>
+                <div class="admin-facility-actions">
+                    <button type="button" class="admin-cancel-btn" onclick="closeAdminFacilityModal()">Cancel</button>
+                    <button type="button" class="admin-post-btn">Post</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <!-- Custom Success Popup Modal -->
     <div id="successPopup" class="success-popup hidden">
         <div class="success-popup-backdrop" onclick="closeSuccessPopup()"></div>
@@ -270,7 +424,8 @@ function booking_status_badge($status)
             today: '<?php echo e($today_iso); ?>',
             todayLabel: '<?php echo e($formatted_date); ?>',
             tomorrow: '<?php echo e($tomorrow_iso); ?>',
-            maxDate: '<?php echo e($max_advance_iso); ?>'
+            maxDate: '<?php echo e($max_advance_iso); ?>',
+            isAdmin: <?php echo $is_admin_user ? 'true' : 'false'; ?>
         };
     </script>
     <script src="assets/js/header.js?v=<?php echo time(); ?>"></script>

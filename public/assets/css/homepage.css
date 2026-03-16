@@ -9,9 +9,9 @@ body {
 
 /* Main Content */
 .container {
-    max-width: 1400px;
+    width: min(1800px, 96vw);
     margin: 0 auto;
-    padding: 2rem;
+    padding: clamp(0.85rem, 1.6vw, 2rem);
 }
 
 .welcome-section {
@@ -344,8 +344,7 @@ body {
 /* Tablet (768px to 1024px) */
 @media (max-width: 1024px) {
     .container {
-        padding: 1.5rem;
-        max-width: 100%;
+        padding: 1.25rem;
     }
 
     .welcome-section h1 {
@@ -385,8 +384,8 @@ body {
 /* Mobile (576px to 768px) */
 @media (max-width: 768px) {
     .container {
+        width: 100%;
         padding: 1rem;
-        max-width: 100%;
     }
 
     .welcome-section h1 {

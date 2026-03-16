@@ -565,6 +565,432 @@
     box-shadow: 0 6px 20px rgba(72, 187, 120, 0.4);
 }
 
+/* Admin Attendance Dashboard */
+.admin-attendance-card {
+    margin-bottom: 1.5rem;
+}
+
+.admin-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1rem;
+    padding: 1.25rem;
+}
+
+.admin-tabs {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0 1.25rem 1rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.admin-tab-btn {
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #334155;
+    font-size: 0.9rem;
+    font-weight: 600;
+    padding: 0.45rem 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.admin-tab-btn:hover {
+    border-color: #93c5fd;
+    color: #1d4ed8;
+}
+
+.admin-tab-btn.active {
+    border-color: #2563eb;
+    background: #eff6ff;
+    color: #1d4ed8;
+}
+
+.admin-tab-panel {
+    padding: 1rem 1.25rem 1.25rem;
+}
+
+.admin-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.7rem;
+    margin-bottom: 1rem;
+}
+
+.admin-toolbar label {
+    color: #334155;
+    font-size: 0.88rem;
+    font-weight: 600;
+}
+
+.admin-select,
+.admin-search {
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 0.55rem 0.7rem;
+    color: #111827;
+    min-width: 260px;
+    font-size: 0.92rem;
+    background: #ffffff;
+}
+
+.admin-search {
+    flex: 1;
+}
+
+.admin-select:focus,
+.admin-search:focus {
+    outline: none;
+    border-color: #60a5fa;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.admin-table-wrapper {
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    overflow: auto;
+}
+
+.admin-table,
+.admin-subtable {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 720px;
+}
+
+.admin-subtable {
+    min-width: 100%;
+}
+
+.admin-table thead th,
+.admin-subtable thead th {
+    text-align: left;
+    color: #475569;
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 0.72rem 0.8rem;
+}
+
+.admin-table tbody td,
+.admin-subtable tbody td {
+    border-top: 1px solid #eef2f7;
+    color: #111827;
+    font-size: 0.9rem;
+    padding: 0.68rem 0.8rem;
+    vertical-align: top;
+}
+
+.admin-session-row {
+    cursor: pointer;
+}
+
+.admin-session-row:hover {
+    background: #f8fafc;
+}
+
+.admin-session-row.expanded {
+    background: #f8fafc;
+}
+
+.admin-session-detail-row td {
+    background: #fbfdff;
+    padding: 0;
+}
+
+.admin-session-student-list {
+    padding: 0.85rem;
+}
+
+.admin-rate-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    padding: 0.2rem 0.55rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    background: #e2e8f0;
+    color: #334155;
+}
+
+.admin-rate-badge.high {
+    background: rgba(34, 197, 94, 0.14);
+    color: #166534;
+}
+
+.admin-rate-badge.low {
+    background: rgba(239, 68, 68, 0.14);
+    color: #b91c1c;
+}
+
+.admin-rate-badge.neutral {
+    background: rgba(148, 163, 184, 0.2);
+    color: #334155;
+}
+
+.admin-inline-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    margin-left: 0.4rem;
+    padding: 0.18rem 0.45rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    background: rgba(251, 191, 36, 0.18);
+    color: #92400e;
+}
+
+.admin-status-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 0.2rem 0.55rem;
+    font-size: 0.74rem;
+    font-weight: 700;
+}
+
+.admin-status-badge.is-present {
+    background: rgba(34, 197, 94, 0.14);
+    color: #166534;
+}
+
+.admin-status-badge.is-late {
+    background: rgba(251, 191, 36, 0.2);
+    color: #92400e;
+}
+
+.admin-status-badge.is-absent {
+    background: rgba(239, 68, 68, 0.14);
+    color: #b91c1c;
+}
+
+.admin-status-badge.is-not-marked {
+    background: rgba(148, 163, 184, 0.24);
+    color: #334155;
+}
+
+.admin-student-results {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 0.6rem;
+    margin-bottom: 1rem;
+}
+
+.admin-student-result {
+    border: 1px solid #dbe5f0;
+    background: #ffffff;
+    border-radius: 10px;
+    padding: 0.68rem 0.75rem;
+    text-align: left;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.admin-student-result:hover {
+    border-color: #93c5fd;
+    background: #f8fbff;
+}
+
+.admin-student-result.active {
+    border-color: #2563eb;
+    background: #eff6ff;
+}
+
+.admin-student-name {
+    color: #0f172a;
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+.admin-student-email {
+    color: #64748b;
+    font-size: 0.8rem;
+}
+
+.admin-student-breakdown {
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 0.95rem;
+}
+
+.admin-student-breakdown-header {
+    color: #0f172a;
+    font-size: 0.94rem;
+    font-weight: 700;
+    margin-bottom: 0.7rem;
+}
+
+.admin-week-navigation {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8rem;
+    margin-bottom: 0.9rem;
+}
+
+#admin-week-display {
+    color: #1f2937;
+    font-weight: 700;
+    text-align: center;
+}
+
+.admin-filter-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.9rem;
+}
+
+.admin-chip {
+    border: 1px solid #cbd5e1;
+    border-radius: 999px;
+    background: #ffffff;
+    color: #334155;
+    padding: 0.35rem 0.7rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.admin-chip:hover {
+    border-color: #93c5fd;
+    color: #1d4ed8;
+}
+
+.admin-chip.active {
+    border-color: #2563eb;
+    background: #eff6ff;
+    color: #1d4ed8;
+}
+
+.admin-report-card {
+    padding: 0;
+    overflow: hidden;
+}
+
+.admin-report-toggle {
+    border: none;
+    width: 100%;
+    background: #f8fafc;
+    color: #0f172a;
+    text-align: left;
+    font-size: 1rem;
+    font-weight: 700;
+    padding: 1rem 1.25rem;
+    cursor: pointer;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.admin-report-toggle:hover {
+    background: #f1f5f9;
+}
+
+.admin-report-panel {
+    padding: 1rem 1.25rem 1.2rem;
+}
+
+.admin-report-types {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 0.9rem;
+    color: #334155;
+}
+
+.admin-report-types label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.admin-report-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.65rem;
+    margin-bottom: 0.95rem;
+}
+
+.admin-report-controls label {
+    color: #334155;
+    font-size: 0.88rem;
+    font-weight: 600;
+}
+
+.admin-report-output {
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 0.95rem;
+    background: #ffffff;
+    min-height: 80px;
+}
+
+.admin-print-header h3 {
+    margin: 0 0 0.55rem;
+    color: #0f172a;
+    font-size: 1.05rem;
+}
+
+.admin-print-header div {
+    color: #334155;
+    font-size: 0.86rem;
+    margin-bottom: 0.2rem;
+}
+
+.admin-report-table {
+    margin-top: 0.85rem;
+}
+
+.admin-report-summary-row td {
+    background: #f8fafc;
+}
+
+.admin-report-actions {
+    margin-top: 0.85rem;
+    display: flex;
+    justify-content: flex-end;
+}
+
+@media print {
+    body * {
+        visibility: hidden !important;
+    }
+
+    #admin-report-output,
+    #admin-report-output * {
+        visibility: visible !important;
+    }
+
+    #admin-report-output {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        border: none;
+        padding: 0;
+    }
+
+    .admin-report-output .admin-table-wrapper {
+        border: none;
+    }
+
+    .admin-report-output .admin-table,
+    .admin-report-output .admin-subtable {
+        min-width: 100%;
+    }
+}
+
 /* Responsive Design */
 @media screen and (max-width: 1024px) {
     .attendance-container {
@@ -577,6 +1003,10 @@
 
     .semesters-card {
         grid-row: 2;
+    }
+
+    .admin-stats-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
@@ -623,6 +1053,30 @@
     .code-inputs {
         gap: 0.75rem;
     }
+
+    .admin-tabs {
+        flex-wrap: wrap;
+    }
+
+    .admin-toolbar {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .admin-select,
+    .admin-search {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .admin-week-navigation {
+        flex-direction: column;
+    }
+
+    .admin-report-controls {
+        flex-direction: column;
+        align-items: flex-start;
+    }
 }
 
 @media screen and (max-width: 480px) {
@@ -664,5 +1118,21 @@
 
     .attendance-container {
         gap: 1rem;
+    }
+
+    .admin-stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-student-results {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-report-actions {
+        justify-content: stretch;
+    }
+
+    .admin-report-actions .btn {
+        width: 100%;
     }
 }

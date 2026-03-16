@@ -72,11 +72,7 @@ function displayAnnouncementsDropdown(announcements) {
                 <div class="announcement-time">${escapeHtml(ann.time_ago)}</div>
             </div>
         </div>
-    `).join('') + `
-        <div class="view-all-container">
-            <a href="announcements.php" class="view-all-announcements-btn">View All Announcements</a>
-        </div>
-    `;
+    `).join('');
 }
 
 /**

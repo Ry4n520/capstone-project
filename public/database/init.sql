@@ -94,11 +94,16 @@ CREATE TABLE IF NOT EXISTS classrooms (
 -- ===========================================
 CREATE TABLE IF NOT EXISTS schedule_requests (
     request_id INT AUTO_INCREMENT PRIMARY KEY,
+    source_timetable_id INT,
     section_id INT NOT NULL,
     room_id INT NOT NULL,
+    original_room_id INT,
+    original_day_of_week VARCHAR(20),
     day_of_week VARCHAR(20) NOT NULL,
     week_start_date DATE NOT NULL,
     week_end_date DATE NOT NULL,
+    original_start_time TIME,
+    original_end_time TIME,
     start_time TIME NOT NULL,
     end_time TIME NOT NULL,
     status VARCHAR(30) DEFAULT 'pending',
@@ -110,6 +115,10 @@ CREATE TABLE IF NOT EXISTS schedule_requests (
         FOREIGN KEY (section_id) REFERENCES course_sections(section_id),
     CONSTRAINT fk_schedule_requests_room
         FOREIGN KEY (room_id) REFERENCES classrooms(room_id),
+    CONSTRAINT fk_schedule_requests_source_timetable
+        FOREIGN KEY (source_timetable_id) REFERENCES timetables(timetable_id),
+    CONSTRAINT fk_schedule_requests_original_room
+        FOREIGN KEY (original_room_id) REFERENCES classrooms(room_id),
     CONSTRAINT fk_schedule_requests_approved_by
         FOREIGN KEY (approved_by) REFERENCES users(user_id),
     INDEX idx_schedule_requests_week (week_start_date, week_end_date),

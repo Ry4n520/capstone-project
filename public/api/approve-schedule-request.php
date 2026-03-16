@@ -56,11 +56,15 @@ try {
     $request_stmt = $pdo->prepare(
         'SELECT
             request_id,
+            source_timetable_id,
             section_id,
             room_id,
+            original_day_of_week,
             day_of_week,
             week_start_date,
             week_end_date,
+            original_start_time,
+            original_end_time,
             start_time,
             end_time,
             status
@@ -130,22 +134,84 @@ try {
         exit;
     }
 
-    $existing_slot_stmt = $pdo->prepare(
-        'SELECT timetable_id, status
-         FROM timetables
-         WHERE section_id = :section_id
-           AND week_start_date = :week_start_date
-           AND day_of_week = :day_of_week
-         LIMIT 1
-         FOR UPDATE'
-    );
-    $existing_slot_stmt->execute([
-        ':section_id' => $request['section_id'],
-        ':week_start_date' => $request['week_start_date'],
-        ':day_of_week' => $request['day_of_week']
-    ]);
+    $existing_slot = null;
 
-    $existing_slot = $existing_slot_stmt->fetch(PDO::FETCH_ASSOC);
+    if (!empty($request['source_timetable_id'])) {
+        $existing_slot_stmt = $pdo->prepare(
+            'SELECT timetable_id, status
+             FROM timetables
+             WHERE timetable_id = :timetable_id
+               AND section_id = :section_id
+               AND week_start_date = :week_start_date
+             LIMIT 1
+             FOR UPDATE'
+        );
+        $existing_slot_stmt->execute([
+            ':timetable_id' => $request['source_timetable_id'],
+            ':section_id' => $request['section_id'],
+            ':week_start_date' => $request['week_start_date']
+        ]);
+        $existing_slot = $existing_slot_stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    if (!$existing_slot) {
+        $same_time_slot_stmt = $pdo->prepare(
+            'SELECT timetable_id, status
+             FROM timetables
+             WHERE section_id = :section_id
+               AND week_start_date = :week_start_date
+               AND start_time = :start_time
+               AND end_time = :end_time
+             LIMIT 1
+             FOR UPDATE'
+        );
+        $same_time_slot_stmt->execute([
+            ':section_id' => $request['section_id'],
+            ':week_start_date' => $request['week_start_date'],
+            ':start_time' => $request['start_time'],
+            ':end_time' => $request['end_time']
+        ]);
+        $existing_slot = $same_time_slot_stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    if (!$existing_slot) {
+        $fallback_day = $request['original_day_of_week'] ?: $request['day_of_week'];
+        $existing_slot_stmt = $pdo->prepare(
+            'SELECT timetable_id, status
+             FROM timetables
+             WHERE section_id = :section_id
+               AND week_start_date = :week_start_date
+               AND day_of_week = :day_of_week
+             LIMIT 1
+             FOR UPDATE'
+        );
+        $existing_slot_stmt->execute([
+            ':section_id' => $request['section_id'],
+            ':week_start_date' => $request['week_start_date'],
+            ':day_of_week' => $fallback_day
+        ]);
+        $existing_slot = $existing_slot_stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    if (!$existing_slot) {
+        $single_slot_stmt = $pdo->prepare(
+            'SELECT timetable_id, status
+             FROM timetables
+             WHERE section_id = :section_id
+               AND week_start_date = :week_start_date
+             ORDER BY timetable_id ASC
+             LIMIT 2
+             FOR UPDATE'
+        );
+        $single_slot_stmt->execute([
+            ':section_id' => $request['section_id'],
+            ':week_start_date' => $request['week_start_date']
+        ]);
+        $candidate_slots = $single_slot_stmt->fetchAll(PDO::FETCH_ASSOC);
+        if (count($candidate_slots) === 1) {
+            $existing_slot = $candidate_slots[0];
+        }
+    }
 
     $room_conflict_stmt = $pdo->prepare(
         'SELECT c.course_name, cs.section_code
@@ -229,6 +295,7 @@ try {
         $update_timetable_stmt = $pdo->prepare(
             'UPDATE timetables
              SET room_id = :room_id,
+                 day_of_week = :day_of_week,
                  month = :month,
                  week = :week,
                  week_end_date = :week_end_date,
@@ -240,6 +307,7 @@ try {
 
         $update_timetable_stmt->execute([
             ':room_id' => $request['room_id'],
+            ':day_of_week' => $request['day_of_week'],
             ':month' => $month_label,
             ':week' => $week_label,
             ':week_end_date' => $request['week_end_date'],

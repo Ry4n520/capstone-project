@@ -1,0 +1,285 @@
+/* Notifications page */
+
+.notifications-page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    color: #ffffff;
+}
+
+.notifications-page-header h1 {
+    margin: 0;
+    font-size: 2rem;
+}
+
+.notifications-page-header p {
+    margin: 0.35rem 0 0;
+    opacity: 0.9;
+}
+
+.add-announcement-btn {
+    border: none;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    color: #ffffff;
+    padding: 0.65rem 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.add-announcement-btn:hover {
+    filter: brightness(1.03);
+}
+
+.notifications-panel {
+    background: #ffffff;
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
+    padding: 1.25rem;
+    margin-bottom: 2rem;
+}
+
+.notifications-panel-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #334155;
+    margin-bottom: 0.85rem;
+}
+
+.notifications-container {
+    display: grid;
+    gap: 0.85rem;
+}
+
+.notification-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1rem;
+}
+
+.notification-card-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.55rem;
+}
+
+.notification-title {
+    margin: 0;
+    color: #1e293b;
+    font-size: 1.05rem;
+    font-weight: 700;
+}
+
+.notification-time {
+    color: #64748b;
+    font-size: 0.8rem;
+    white-space: nowrap;
+}
+
+.notification-content {
+    color: #475569;
+    line-height: 1.55;
+    margin-bottom: 0.8rem;
+}
+
+.notification-footer {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.notification-author {
+    color: #64748b;
+    font-size: 0.82rem;
+}
+
+.notification-actions {
+    position: relative;
+}
+
+.notification-menu-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    border: 1px solid #d5dee9;
+    background: #ffffff;
+    cursor: pointer;
+    color: #475569;
+}
+
+.notification-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    min-width: 130px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.18);
+    padding: 0.3rem;
+    display: none;
+    z-index: 30;
+}
+
+.notification-menu.open {
+    display: block;
+}
+
+.notification-menu-item {
+    width: 100%;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    padding: 0.5rem 0.6rem;
+    font-size: 0.85rem;
+    text-align: left;
+    cursor: pointer;
+    color: #334155;
+}
+
+.notification-menu-item:hover {
+    background: #f1f5f9;
+}
+
+.notifications-empty-state {
+    padding: 1.25rem;
+    border: 1px dashed #cbd5e1;
+    border-radius: 10px;
+    background: #f8fafc;
+    color: #64748b;
+    text-align: center;
+}
+
+.add-announcement-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 2200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.add-announcement-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.6);
+}
+
+.add-announcement-dialog {
+    position: relative;
+    width: min(640px, 92vw);
+    background: #ffffff;
+    border-radius: 14px;
+    padding: 1.1rem;
+    box-shadow: 0 24px 40px rgba(15, 23, 42, 0.28);
+}
+
+.add-announcement-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.9rem;
+}
+
+.add-announcement-header h2 {
+    margin: 0;
+    color: #1e293b;
+    font-size: 1.2rem;
+}
+
+.add-announcement-close {
+    border: none;
+    background: transparent;
+    font-size: 1.6rem;
+    color: #64748b;
+    cursor: pointer;
+}
+
+.add-announcement-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.add-announcement-form label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    color: #334155;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.add-announcement-form input,
+.add-announcement-form textarea {
+    border: 1px solid #d7deea;
+    border-radius: 8px;
+    padding: 0.6rem 0.7rem;
+    font-size: 0.92rem;
+    font-family: inherit;
+}
+
+.add-announcement-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.6rem;
+}
+
+.announcement-cancel-btn,
+.announcement-post-btn {
+    border: none;
+    border-radius: 8px;
+    padding: 0.55rem 1rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.announcement-cancel-btn {
+    background: #f1f5f9;
+    color: #334155;
+}
+
+.announcement-post-btn {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    color: #ffffff;
+}
+
+.hidden {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .notifications-page-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .add-announcement-btn {
+        width: 100%;
+    }
+
+    .notification-card-header {
+        flex-direction: column;
+    }
+
+    .notification-footer {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .add-announcement-actions {
+        flex-direction: column;
+    }
+
+    .announcement-cancel-btn,
+    .announcement-post-btn {
+        width: 100%;
+    }
+}

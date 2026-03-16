@@ -8,8 +8,11 @@ const bookingConfig = window.FACILITY_BOOKING_CONFIG || {
     today: new Date().toISOString().slice(0, 10),
     todayLabel: new Date().toDateString(),
     tomorrow: new Date().toISOString().slice(0, 10),
-    maxDate: new Date().toISOString().slice(0, 10)
+    maxDate: new Date().toISOString().slice(0, 10),
+    isAdmin: false
 };
+
+const isAdminUser = Boolean(bookingConfig.isAdmin);
 
 let selectedFacilityId = null;
 let selectedFacilityName = '';
@@ -17,6 +20,7 @@ let selectedDate = null;
 let selectedTimeSlot = null;
 let bookingMode = 'today';
 let activeCategoryType = null;
+let editingBookingId = null;
 
 const facilityTypeTitles = {
     classroom: 'Classrooms',
@@ -45,8 +49,9 @@ function showMyBookings() {
     document.getElementById('facilityView').classList.add('hidden');
     document.getElementById('bookingsView').classList.remove('hidden');
 
-    setActiveFilter('upcoming');
-    applyBookingsFilter('upcoming');
+    const defaultFilter = isAdminUser ? 'all' : 'upcoming';
+    setActiveFilter(defaultFilter);
+    applyBookingsFilter(defaultFilter);
 }
 
 function showCategories() {
@@ -112,12 +117,36 @@ function displayFacilities(facilities) {
         const card = document.createElement('div');
         card.className = `facility-card ${isFullyBookedToday ? 'fully-booked-card' : ''}`;
         card.setAttribute('data-facility-id', facility.facility_id);
+
+        const adminControls = isAdminUser
+            ? `
+                <div class="facility-admin-controls">
+                    <button
+                        type="button"
+                        class="facility-admin-menu-btn"
+                        onclick="toggleFacilityAdminMenu(event, ${Number(facility.facility_id)})"
+                        title="Facility actions"
+                        aria-haspopup="true"
+                        aria-expanded="false"
+                    >⋮</button>
+                    <div class="facility-admin-menu" id="facility-admin-menu-${Number(facility.facility_id)}">
+                        <button type="button" class="facility-admin-item">Edit Facility</button>
+                        <button type="button" class="facility-admin-item">Delete Facility</button>
+                        <button type="button" class="facility-admin-item">Set Unavailable</button>
+                    </div>
+                </div>
+            `
+            : '';
+
         card.innerHTML = `
             <div class="facility-header">
                 <div class="facility-name">${escapeHtml(facility.facility_name)}</div>
-                <span class="status-badge ${isFullyBookedToday ? 'status-occupied' : 'status-available'}">
-                    ${isFullyBookedToday ? 'Fully Booked' : `${availableCount} Slots Available`}
-                </span>
+                <div class="facility-header-right">
+                    <span class="status-badge ${isFullyBookedToday ? 'status-occupied' : 'status-available'}">
+                        ${isFullyBookedToday ? 'Fully Booked' : `${availableCount} Slots Available`}
+                    </span>
+                    ${adminControls}
+                </div>
             </div>
             <div class="facility-info">
                 <span>👥 Max ${Number(facility.capacity || 0)} people</span>
@@ -146,6 +175,61 @@ function displayFacilities(facilities) {
 
         facilityGrid.appendChild(card);
     });
+}
+
+function openAdminFacilityModal() {
+    if (!isAdminUser) {
+        return;
+    }
+
+    const modal = document.getElementById('adminFacilityModal');
+    if (modal) {
+        modal.classList.remove('hidden');
+    }
+}
+
+function closeAdminFacilityModal() {
+    const modal = document.getElementById('adminFacilityModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
+function closeAllFacilityAdminMenus(exceptMenu = null) {
+    document.querySelectorAll('.facility-admin-menu.open').forEach(menu => {
+        if (menu !== exceptMenu) {
+            menu.classList.remove('open');
+
+            const controls = menu.closest('.facility-admin-controls');
+            const btn = controls ? controls.querySelector('.facility-admin-menu-btn') : null;
+            if (btn) {
+                btn.setAttribute('aria-expanded', 'false');
+            }
+        }
+    });
+}
+
+function toggleFacilityAdminMenu(event, facilityId) {
+    if (!isAdminUser) {
+        return;
+    }
+
+    event.stopPropagation();
+    const menu = document.getElementById(`facility-admin-menu-${facilityId}`);
+    if (!menu) {
+        return;
+    }
+
+    const shouldOpen = !menu.classList.contains('open');
+    closeAllFacilityAdminMenus(menu);
+
+    menu.classList.toggle('open', shouldOpen);
+
+    const controls = menu.closest('.facility-admin-controls');
+    const btn = controls ? controls.querySelector('.facility-admin-menu-btn') : null;
+    if (btn) {
+        btn.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+    }
 }
 
 function selectFacilityTimeSlot(event, facilityId) {
@@ -461,6 +545,147 @@ async function cancelBooking(bookingId) {
     }
 }
 
+function openEditBookingModal(bookingId) {
+    if (!isAdminUser) {
+        return;
+    }
+
+    const row = document.querySelector(`tr[data-booking-id="${bookingId}"]`);
+    if (!row) {
+        alert('Booking row not found. Please refresh and try again.');
+        return;
+    }
+
+    editingBookingId = Number(bookingId);
+
+    const facilityNameEl = document.getElementById('editBookingFacilityName');
+    const dateInput = document.getElementById('edit-booking-date');
+    const startInput = document.getElementById('edit-booking-start');
+    const endInput = document.getElementById('edit-booking-end');
+    const modal = document.getElementById('editBookingModal');
+
+    if (!facilityNameEl || !dateInput || !startInput || !endInput || !modal) {
+        return;
+    }
+
+    facilityNameEl.textContent = row.dataset.facilityName || '-';
+    dateInput.value = row.dataset.bookingDate || '';
+    startInput.value = (row.dataset.startTime || '').slice(0, 5);
+    endInput.value = (row.dataset.endTime || '').slice(0, 5);
+
+    modal.classList.remove('hidden');
+}
+
+function closeEditBookingModal() {
+    const modal = document.getElementById('editBookingModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+
+    editingBookingId = null;
+
+    const facilityNameEl = document.getElementById('editBookingFacilityName');
+    const dateInput = document.getElementById('edit-booking-date');
+    const startInput = document.getElementById('edit-booking-start');
+    const endInput = document.getElementById('edit-booking-end');
+
+    if (facilityNameEl) {
+        facilityNameEl.textContent = '-';
+    }
+    if (dateInput) {
+        dateInput.value = '';
+    }
+    if (startInput) {
+        startInput.value = '';
+    }
+    if (endInput) {
+        endInput.value = '';
+    }
+}
+
+async function submitBookingEdit() {
+    if (!isAdminUser || !editingBookingId) {
+        return;
+    }
+
+    const dateInput = document.getElementById('edit-booking-date');
+    const startInput = document.getElementById('edit-booking-start');
+    const endInput = document.getElementById('edit-booking-end');
+
+    if (!dateInput || !startInput || !endInput) {
+        return;
+    }
+
+    const bookingDate = dateInput.value;
+    const startTimeRaw = startInput.value;
+    const endTimeRaw = endInput.value;
+
+    if (!bookingDate || !startTimeRaw || !endTimeRaw) {
+        alert('Please provide booking date, start time, and end time.');
+        return;
+    }
+
+    if (startTimeRaw >= endTimeRaw) {
+        alert('Start time must be before end time.');
+        return;
+    }
+
+    const startTime = `${startTimeRaw}:00`;
+    const endTime = `${endTimeRaw}:00`;
+
+    try {
+        const response = await fetch('api/update-booking.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                booking_id: editingBookingId,
+                booking_date: bookingDate,
+                start_time: startTime,
+                end_time: endTime
+            })
+        });
+
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || data.error || 'Failed to update booking.');
+        }
+
+        alert('Booking updated successfully');
+        closeEditBookingModal();
+        window.location.reload();
+    } catch (error) {
+        alert('Failed to update booking: ' + error.message);
+    }
+}
+
+async function deleteBooking(bookingId) {
+    if (!isAdminUser) {
+        return;
+    }
+
+    if (!confirm('Delete this booking permanently?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch('api/delete-booking.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ booking_id: Number(bookingId) })
+        });
+
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || data.error || 'Failed to delete booking.');
+        }
+
+        alert('Booking deleted successfully');
+        window.location.reload();
+    } catch (error) {
+        alert('Failed to delete booking: ' + error.message);
+    }
+}
+
 /**
  * Validate date and load slots
  * Checks if selected date is a public holiday before loading slots
@@ -591,6 +816,20 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    setActiveFilter('upcoming');
-    applyBookingsFilter('upcoming');
+    const defaultFilter = isAdminUser ? 'all' : 'upcoming';
+    setActiveFilter(defaultFilter);
+    applyBookingsFilter(defaultFilter);
+
+    document.addEventListener('click', function (event) {
+        if (!event.target.closest('.facility-admin-controls')) {
+            closeAllFacilityAdminMenus();
+        }
+    });
+
+    document.addEventListener('click', function (event) {
+        if (event.target.classList.contains('facility-admin-item')) {
+            event.preventDefault();
+            closeAllFacilityAdminMenus();
+        }
+    });
 });
