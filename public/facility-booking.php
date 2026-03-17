@@ -120,7 +120,12 @@ function booking_status_badge($status)
                 <div class="category-card classroom-accent" onclick="showFacilities('classroom')">
                     <div class="category-icon">🏫</div>
                     <div class="category-name">Classrooms</div>
-                    <div class="category-count"><?php echo e($category_counts['classroom']); ?> rooms available</div>
+                    <div
+                        class="category-count"
+                        data-category-count-type="classroom"
+                        data-category-count-value="<?php echo e($category_counts['classroom']); ?>"
+                        data-category-count-label="rooms available"
+                    ><?php echo e($category_counts['classroom']); ?> rooms available</div>
                     <span class="category-badge">Browse Now</span>
                 </div>
 
@@ -128,7 +133,12 @@ function booking_status_badge($status)
                 <div class="category-card meeting-accent" onclick="showFacilities('meeting_room')">
                     <div class="category-icon">👥</div>
                     <div class="category-name">Meeting Rooms</div>
-                    <div class="category-count"><?php echo e($category_counts['meeting_room']); ?> rooms available</div>
+                    <div
+                        class="category-count"
+                        data-category-count-type="meeting_room"
+                        data-category-count-value="<?php echo e($category_counts['meeting_room']); ?>"
+                        data-category-count-label="rooms available"
+                    ><?php echo e($category_counts['meeting_room']); ?> rooms available</div>
                     <span class="category-badge">Browse Now</span>
                 </div>
 
@@ -136,7 +146,12 @@ function booking_status_badge($status)
                 <div class="category-card sport-accent" onclick="showFacilities('sport_facility')">
                     <div class="category-icon">⚽</div>
                     <div class="category-name">Sport Facilities</div>
-                    <div class="category-count"><?php echo e($category_counts['sport_facility']); ?> facilities available</div>
+                    <div
+                        class="category-count"
+                        data-category-count-type="sport_facility"
+                        data-category-count-value="<?php echo e($category_counts['sport_facility']); ?>"
+                        data-category-count-label="facilities available"
+                    ><?php echo e($category_counts['sport_facility']); ?> facilities available</div>
                     <span class="category-badge">Browse Now</span>
                 </div>
 
@@ -182,7 +197,7 @@ function booking_status_badge($status)
             </div>
 
             <!-- Bookings Table -->
-            <table class="bookings-table">
+            <table id="bookingsTable" class="bookings-table">
                 <thead>
                     <tr>
                         <th>Facility</th>
@@ -236,22 +251,28 @@ function booking_status_badge($status)
                                     <?php if ($is_admin_user): ?>
                                         <div class="bookings-action-group">
                                             <button
+                                                type="button"
                                                 class="action-btn btn-cancel"
-                                                onclick="cancelBooking(<?php echo e($booking['booking_id']); ?>)"
-                                                <?php echo (!$is_future_booking || $is_cancelled) ? 'disabled' : ''; ?>
+                                                data-booking-action="cancel"
+                                                data-booking-id="<?php echo e($booking['booking_id']); ?>"
+                                                <?php echo $is_cancelled ? 'disabled' : ''; ?>
                                             >
                                                 Cancel
                                             </button>
                                             <button
+                                                type="button"
                                                 class="action-btn btn-edit"
-                                                onclick="openEditBookingModal(<?php echo e($booking['booking_id']); ?>)"
+                                                data-booking-action="edit"
+                                                data-booking-id="<?php echo e($booking['booking_id']); ?>"
                                                 <?php echo $is_cancelled ? 'disabled' : ''; ?>
                                             >
                                                 Edit
                                             </button>
                                             <button
+                                                type="button"
                                                 class="action-btn btn-delete"
-                                                onclick="deleteBooking(<?php echo e($booking['booking_id']); ?>)"
+                                                data-booking-action="delete"
+                                                data-booking-id="<?php echo e($booking['booking_id']); ?>"
                                             >
                                                 Delete
                                             </button>
@@ -359,18 +380,18 @@ function booking_status_badge($status)
         <div class="admin-facility-backdrop" onclick="closeAdminFacilityModal()"></div>
         <div class="admin-facility-content">
             <div class="admin-facility-header">
-                <h3>Add New Facility</h3>
+                <h3 id="adminFacilityModalTitle">Add New Facility</h3>
                 <button type="button" class="admin-facility-close" onclick="closeAdminFacilityModal()">&times;</button>
             </div>
-            <form id="adminFacilityForm" class="admin-facility-form" onsubmit="return false;">
+            <form id="adminFacilityForm" class="admin-facility-form">
                 <div class="admin-facility-grid">
                     <label>
                         Facility Name
-                        <input type="text" placeholder="e.g. Innovation Lab A" />
+                        <input type="text" id="admin-facility-name" placeholder="e.g. Innovation Lab A" maxlength="120" required />
                     </label>
                     <label>
                         Category
-                        <select>
+                        <select id="admin-facility-category" required>
                             <option value="classroom">Classroom</option>
                             <option value="meeting_room">Meeting Room</option>
                             <option value="sport_facility">Sport Facility</option>
@@ -378,31 +399,35 @@ function booking_status_badge($status)
                     </label>
                     <label>
                         Location
-                        <input type="text" placeholder="e.g. Block B, Level 2" />
+                        <input type="text" id="admin-facility-location" placeholder="e.g. Block B, Level 2" maxlength="120" required />
                     </label>
                     <label>
                         Capacity
-                        <input type="number" min="1" placeholder="e.g. 30" />
-                    </label>
-                </div>
-                <label class="admin-facility-full-width">
-                    Notes
-                    <textarea rows="3" placeholder="Optional notes for this facility."></textarea>
-                </label>
-                <div class="admin-facility-checkbox-row">
-                    <label class="admin-facility-checkbox">
-                        <input type="checkbox" />
-                        <span>Set this facility as unavailable for student booking</span>
+                        <input type="number" id="admin-facility-capacity" min="1" placeholder="e.g. 30" required />
                     </label>
                 </div>
                 <div class="admin-facility-actions">
                     <button type="button" class="admin-cancel-btn" onclick="closeAdminFacilityModal()">Cancel</button>
-                    <button type="button" class="admin-post-btn">Post</button>
+                    <button type="submit" id="admin-facility-submit-btn" class="admin-post-btn">Post</button>
                 </div>
             </form>
         </div>
     </div>
     <?php endif; ?>
+
+    <div id="actionPopup" class="action-popup hidden" aria-hidden="true">
+        <div class="action-popup-backdrop" data-action-popup-close></div>
+        <div id="actionPopupContent" class="action-popup-content" role="dialog" aria-modal="true" aria-labelledby="actionPopupTitle">
+            <div class="action-popup-header">
+                <h3 id="actionPopupTitle">Notice</h3>
+                <button type="button" class="action-popup-close" id="actionPopupClose" aria-label="Close">&times;</button>
+            </div>
+            <div class="action-popup-body">
+                <p id="actionPopupMessage"></p>
+            </div>
+            <div id="actionPopupActions" class="action-popup-actions"></div>
+        </div>
+    </div>
 
     <!-- Custom Success Popup Modal -->
     <div id="successPopup" class="success-popup hidden">

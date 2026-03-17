@@ -206,9 +206,82 @@ body {
     color: white;
 }
 
+.status-upcoming {
+    background: #edf2f7;
+    color: #4a5568;
+}
+
+.status-completed {
+    background: #f0fff4;
+    color: #2f855a;
+}
+
 .class-room {
     color: #a0aec0;
     font-size: 0.85rem;
+}
+
+.request-change-item {
+    background: #f7fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.request-change-item:last-child {
+    margin-bottom: 0;
+}
+
+.request-change-item:hover {
+    background: #edf2f7;
+    border-color: #cbd5e0;
+}
+
+.request-change-topline {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 0.6rem;
+}
+
+.request-change-title {
+    color: #2d3748;
+    font-weight: 600;
+    margin-bottom: 0.2rem;
+}
+
+.request-change-meta {
+    color: #718096;
+    font-size: 0.85rem;
+}
+
+.request-change-badge {
+    background: #fff7ed;
+    color: #c05621;
+    border: 1px solid #fbd38d;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.25rem 0.7rem;
+    white-space: nowrap;
+}
+
+.request-change-line {
+    color: #4a5568;
+    font-size: 0.88rem;
+    margin-bottom: 0.35rem;
+    line-height: 1.5;
+}
+
+.request-change-line span {
+    display: inline-block;
+    min-width: 5.25rem;
+    color: #2d3748;
+    font-weight: 600;
 }
 
 /* Announcement Item */
@@ -416,6 +489,11 @@ body {
         padding: 0.75rem;
     }
 
+    .request-change-topline {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
     .profile-content {
         flex-direction: column;
         text-align: center;
@@ -492,6 +570,10 @@ body {
 
     .booking-item {
         padding: 0.6rem;
+    }
+
+    .request-change-line span {
+        min-width: 4.8rem;
     }
 
     .profile-content {

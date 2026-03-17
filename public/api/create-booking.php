@@ -121,14 +121,26 @@ try {
 
     // 1. Verify facility exists
     $facilityStmt = $pdo->prepare(
-        'SELECT facility_id FROM facilities WHERE facility_id = :facility_id LIMIT 1'
+        'SELECT facility_id, is_available
+         FROM facilities
+         WHERE facility_id = :facility_id
+         LIMIT 1'
     );
     $facilityStmt->execute([':facility_id' => $facilityId]);
 
-    if (!$facilityStmt->fetch()) {
+    $facility = $facilityStmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$facility) {
         $pdo->rollBack();
         http_response_code(404);
         echo json_encode(['success' => false, 'message' => 'Facility not found.']);
+        exit;
+    }
+
+    if (!facility_booking_is_available_value($facility['is_available'])) {
+        $pdo->rollBack();
+        http_response_code(409);
+        echo json_encode(['success' => false, 'message' => 'This facility is currently unavailable for booking.']);
         exit;
     }
 

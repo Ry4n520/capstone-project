@@ -56,7 +56,7 @@ if ($holiday) {
 
 try {
     $facilityStmt = $pdo->prepare(
-        'SELECT facility_id, facility_name, location, facility_type
+        'SELECT facility_id, facility_name, location, facility_type, is_available
          FROM facilities
          WHERE facility_id = :facility_id
          LIMIT 1'
@@ -67,6 +67,16 @@ try {
     if (!$facility) {
         http_response_code(404);
         echo json_encode(['error' => 'Facility not found.']);
+        exit;
+    }
+
+    if (!facility_booking_is_available_value($facility['is_available'])) {
+        http_response_code(409);
+        echo json_encode([
+            'success' => false,
+            'error' => 'Facility unavailable',
+            'message' => 'This facility is currently unavailable for booking.'
+        ]);
         exit;
     }
 

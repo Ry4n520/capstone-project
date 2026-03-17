@@ -4,6 +4,8 @@
  * Handles real-time clock updates and dynamic dashboard behavior
  */
 
+const homepageConfig = window.homepageConfig || { role: 'student' };
+
 document.addEventListener('DOMContentLoaded', function() {
     // Real-time clock update
     function updateClock() {
@@ -42,66 +44,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Update clock immediately and every second
     updateClock();
     setInterval(updateClock, 1000);
-    
-    // Check for ongoing classes
-    function checkOngoingClasses() {
-        const now = new Date();
-        const currentTime = now.getHours() * 60 + now.getMinutes(); // Convert to minutes
-        
-        const classItems = document.querySelectorAll('.class-item');
-        
-        // Only process if there are actual class items
-        if (classItems.length === 0) {
-            return;
-        }
-        
-        classItems.forEach(item => {
-            const timeText = item.querySelector('.class-time');
-            if (timeText) {
-                const timeRange = timeText.textContent;
-                const match = timeRange.match(/(\d+):(\d+)\s*(AM|PM)\s*-\s*(\d+):(\d+)\s*(AM|PM)/);
-                
-                if (match) {
-                    let startHour = parseInt(match[1]);
-                    let startMin = parseInt(match[2]);
-                    let endHour = parseInt(match[4]);
-                    let endMin = parseInt(match[5]);
-                    
-                    // Convert to 24-hour format
-                    if (match[3] === 'PM' && startHour !== 12) startHour += 12;
-                    if (match[3] === 'AM' && startHour === 12) startHour = 0;
-                    if (match[6] === 'PM' && endHour !== 12) endHour += 12;
-                    if (match[6] === 'AM' && endHour === 12) endHour = 0;
-                    
-                    const startTime = startHour * 60 + startMin;
-                    const endTime = endHour * 60 + endMin;
-                    
-                    // Check if current time is within class time
-                    if (currentTime >= startTime && currentTime < endTime) {
-                        item.classList.add('ongoing');
-                        // Add or update the ongoing status badge
-                        let statusBadge = item.querySelector('.class-status');
-                        if (!statusBadge) {
-                            statusBadge = document.createElement('span');
-                            statusBadge.className = 'class-status status-ongoing';
-                            statusBadge.textContent = 'Ongoing';
-                            item.appendChild(statusBadge);
-                        }
-                    } else {
-                        item.classList.remove('ongoing');
-                        const statusBadge = item.querySelector('.class-status');
-                        if (statusBadge) {
-                            statusBadge.remove();
-                        }
-                    }
-                }
-            }
-        });
-    }
-    
-    // Check ongoing classes immediately and every minute
-    checkOngoingClasses();
-    setInterval(checkOngoingClasses, 60000);
     
     // Load dynamic homepage data
     loadHomepageData();
@@ -157,6 +99,7 @@ function loadHomepageData() {
             console.log('[Homepage] Data received:', {
                 attendance_rate: data.attendance_rate,
                 todays_classes: data.todays_classes?.length,
+                schedule_requests: data.schedule_requests?.length,
                 upcoming_bookings: data.upcoming_bookings?.length,
                 recent_announcements: data.recent_announcements?.length,
                 active_bookings_count: data.active_bookings_count,
@@ -188,7 +131,11 @@ function loadHomepageData() {
             }
             
             // Display data
-            displayTodaysClasses(data.todays_classes || []);
+            if (homepageConfig.role === 'admin') {
+                displayScheduleRequests(data.schedule_requests || []);
+            } else {
+                displayTodaysClasses(data.todays_classes || []);
+            }
             displayAnnouncements(data.recent_announcements || []);
             displayUpcomingBookings(data.upcoming_bookings || []);
             
@@ -204,11 +151,8 @@ function loadHomepageData() {
  * Display today's classes
  */
 function displayTodaysClasses(classes) {
-    // Find the card with "Today's Classes" header
-    const cards = document.querySelectorAll('.card-grid.row-2 .card');
-    if (cards.length === 0) return;
-    
-    const classesCard = cards[0];
+    const classesCard = getPrimaryDashboardCard();
+    if (!classesCard) return;
     
     // Clear previous content
     const emptyStates = classesCard.querySelectorAll('.empty-state');
@@ -227,19 +171,20 @@ function displayTodaysClasses(classes) {
     }
     
     // Create classes list container
-    const classesHtml = classes.map(cls => `
-        <div class="class-item ${cls.class_status}">
+    const classesHtml = classes.map(cls => {
+        return `
+        <div class="class-item">
             <div>
                 <div class="class-time">${formatTime(cls.start_time)} - ${formatTime(cls.end_time)}</div>
                 <div class="class-name">${cls.course_name}</div>
                 <div class="class-lecturer">${cls.lecturer_name}</div>
             </div>
             <div style="text-align: right;">
-                ${cls.class_status === 'ongoing' ? '<span class="class-status status-ongoing">Ongoing</span>' : ''}
                 <div class="class-room">${cls.room_name}${cls.building ? ' - ' + cls.building : ''}</div>
             </div>
         </div>
-    `).join('');
+    `;
+    }).join('');
     
     const classesContainer = document.createElement('div');
     classesContainer.className = 'classes-list';
@@ -248,13 +193,61 @@ function displayTodaysClasses(classes) {
 }
 
 /**
+ * Display admin request changes preview
+ */
+function displayScheduleRequests(requests) {
+    const requestCard = getPrimaryDashboardCard();
+    if (!requestCard) return;
+
+    clearPrimaryCardContent(requestCard, ['classes-list', 'request-changes-list']);
+
+    if (requests.length === 0) {
+        const emptyDiv = document.createElement('div');
+        emptyDiv.className = 'empty-state';
+        emptyDiv.innerHTML = '<p>No pending schedule change requests</p>';
+        requestCard.appendChild(emptyDiv);
+        return;
+    }
+
+    const requestsHtml = requests.map(request => {
+        const currentTime = [formatTime(request.current_start_time), formatTime(request.current_end_time)]
+            .filter(Boolean)
+            .join(' - ') || 'No existing time';
+        const requestedTime = [formatTime(request.start_time), formatTime(request.end_time)]
+            .filter(Boolean)
+            .join(' - ');
+        const currentRoom = request.current_room_name
+            ? `${escapeHtml(request.current_room_name)}${request.current_building ? ` (${escapeHtml(request.current_building)})` : ''}`
+            : 'No existing room';
+        const requestedRoom = `${escapeHtml(request.requested_room_name)}${request.requested_building ? ` (${escapeHtml(request.requested_building)})` : ''}`;
+
+        return `
+        <div class="request-change-item" onclick="window.location.href='timetable.php'">
+            <div class="request-change-topline">
+                <div>
+                    <div class="request-change-title">${escapeHtml(request.course_name)} (${escapeHtml(request.section_code)})</div>
+                    <div class="request-change-meta">Lecturer: ${escapeHtml(request.lecturer_name)}</div>
+                </div>
+                <div class="request-change-badge">Pending</div>
+            </div>
+            <div class="request-change-line"><span>Current</span>${escapeHtml(request.current_day_of_week || request.day_of_week)} • ${escapeHtml(currentTime)} • ${currentRoom}</div>
+            <div class="request-change-line"><span>Requested</span>${escapeHtml(request.day_of_week)} • ${escapeHtml(requestedTime)} • ${requestedRoom}</div>
+            <div class="request-change-meta">Week of ${escapeHtml(formatDate(request.week_start_date))}</div>
+        </div>`;
+    }).join('');
+
+    const requestsContainer = document.createElement('div');
+    requestsContainer.className = 'request-changes-list';
+    requestsContainer.innerHTML = requestsHtml + '<a href="timetable.php" class="view-all-link">Review All Requests →</a>';
+    requestCard.appendChild(requestsContainer);
+}
+
+/**
  * Display announcements
  */
 function displayAnnouncements(announcements) {
-    const cards = document.querySelectorAll('.card-grid.row-2 .card');
-    if (cards.length < 2) return;
-    
-    const announcementCard = cards[1];
+    const announcementCard = document.getElementById('announcements-card');
+    if (!announcementCard) return;
     
     const emptyStates = announcementCard.querySelectorAll('.empty-state');
     emptyStates.forEach(el => el.remove());
@@ -290,8 +283,7 @@ function displayAnnouncements(announcements) {
  * Display upcoming bookings
  */
 function displayUpcomingBookings(bookings) {
-    // Find the card in row-1 which should be bookings
-    const bookingsCard = document.querySelector('.card-grid.row-1 .card');
+    const bookingsCard = document.getElementById('bookings-card');
     if (!bookingsCard) return;
     
     // Clear previous content
@@ -356,4 +348,26 @@ function formatDate(date) {
 function truncate(text, length) {
     if (!text) return '';
     return text.length > length ? text.substring(0, length) + '...' : text;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text == null ? '' : String(text);
+    return div.innerHTML;
+}
+
+function getPrimaryDashboardCard() {
+    return document.getElementById('primary-dashboard-card');
+}
+
+function clearPrimaryCardContent(card, removableClasses) {
+    const emptyStates = card.querySelectorAll('.empty-state');
+    emptyStates.forEach(el => el.remove());
+
+    removableClasses.forEach(className => {
+        const element = card.querySelector(`.${className}`);
+        if (element) {
+            element.remove();
+        }
+    });
 }

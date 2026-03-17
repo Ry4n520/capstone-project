@@ -13,53 +13,90 @@ if (!isset($_SESSION['user_id'])) {
 
 require_once __DIR__ . '/../config/db.php';
 
-$role_id = $_SESSION['role_id'] ?? 2;
+$user_role = strtolower((string) ($_SESSION['role'] ?? 'student'));
+$is_admin = ($user_role === 'admin');
 $filter = $_GET['filter'] ?? 'all'; // all, today, week, month
+
+try {
+    $role_stmt = $pdo->prepare('SELECT role_id FROM roles WHERE role_name = :role_name LIMIT 1');
+    $role_stmt->execute([':role_name' => $user_role]);
+    $role_id = (int) ($role_stmt->fetchColumn() ?: 0);
+} catch (Throwable $e) {
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'error' => 'Database error',
+        'message' => 'Unable to resolve role context.'
+    ]);
+    exit;
+}
+
+if (!$is_admin && $role_id <= 0) {
+    http_response_code(403);
+    echo json_encode([
+        'success' => false,
+        'error' => 'Role unavailable',
+        'message' => 'Role mapping not found.'
+    ]);
+    exit;
+}
 
 // Build date filter
 $date_condition = '';
 switch ($filter) {
     case 'today':
-        $date_condition = "AND DATE(created_date) = CURDATE()";
+        $date_condition = "AND DATE(a.created_date) = CURDATE()";
         break;
     case 'week':
-        $date_condition = "AND created_date >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
+        $date_condition = "AND a.created_date >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
         break;
     case 'month':
-        $date_condition = "AND created_date >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
+        $date_condition = "AND a.created_date >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
         break;
     default:
         $date_condition = ""; // All announcements
 }
 
+$visibility_condition = $is_admin
+    ? '1=1'
+    : '(a.target_role_id IS NULL OR a.target_role_id = :role_id)';
+
 $query = "
     SELECT 
-        announcement_id,
-        title,
-        content,
-        created_date,
+        a.announcement_id,
+        a.title,
+        a.content,
+        a.created_date,
         u.name as created_by,
+        tr.role_name as target_role_name,
+        a.target_role_id,
         CASE 
-            WHEN TIMESTAMPDIFF(HOUR, created_date, NOW()) < 1 
-                THEN CONCAT(TIMESTAMPDIFF(MINUTE, created_date, NOW()), ' minutes ago')
-            WHEN TIMESTAMPDIFF(HOUR, created_date, NOW()) < 24 
-                THEN CONCAT(TIMESTAMPDIFF(HOUR, created_date, NOW()), ' hours ago')
-            WHEN TIMESTAMPDIFF(DAY, created_date, NOW()) = 1 
+            WHEN TIMESTAMPDIFF(HOUR, a.created_date, NOW()) < 1 
+                THEN CONCAT(TIMESTAMPDIFF(MINUTE, a.created_date, NOW()), ' minutes ago')
+            WHEN TIMESTAMPDIFF(HOUR, a.created_date, NOW()) < 24 
+                THEN CONCAT(TIMESTAMPDIFF(HOUR, a.created_date, NOW()), ' hours ago')
+            WHEN TIMESTAMPDIFF(DAY, a.created_date, NOW()) = 1 
                 THEN 'Yesterday'
-            WHEN TIMESTAMPDIFF(DAY, created_date, NOW()) < 7 
-                THEN CONCAT(TIMESTAMPDIFF(DAY, created_date, NOW()), ' days ago')
-            ELSE DATE_FORMAT(created_date, '%b %d, %Y')
+            WHEN TIMESTAMPDIFF(DAY, a.created_date, NOW()) < 7 
+                THEN CONCAT(TIMESTAMPDIFF(DAY, a.created_date, NOW()), ' days ago')
+            ELSE DATE_FORMAT(a.created_date, '%b %d, %Y')
         END as time_ago,
-        DATE_FORMAT(created_date, '%W, %M %d, %Y at %h:%i %p') as formatted_date
+        DATE_FORMAT(a.created_date, '%W, %M %d, %Y at %h:%i %p') as formatted_date
     FROM announcements a
     JOIN users u ON a.user_id = u.user_id
-    WHERE (target_role_id IS NULL OR target_role_id = :role_id)
+    LEFT JOIN roles tr ON a.target_role_id = tr.role_id
+    WHERE $visibility_condition
     $date_condition
-    ORDER BY created_date DESC
+    ORDER BY a.created_date DESC
 ";
 
 $stmt = $pdo->prepare($query);
-$stmt->execute([':role_id' => $role_id]);
+$params = [];
+if (!$is_admin) {
+    $params[':role_id'] = $role_id;
+}
+
+$stmt->execute($params);
 $announcements = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 echo json_encode([

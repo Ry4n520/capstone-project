@@ -19,7 +19,31 @@ if (!isset($_SESSION['user_id'])) {
 
 require_once __DIR__ . '/../config/db.php';
 
-$role_id = $_SESSION['role_id'] ?? 2;
+$user_role = strtolower((string) ($_SESSION['role'] ?? 'student'));
+
+try {
+    $role_stmt = $pdo->prepare('SELECT role_id FROM roles WHERE role_name = :role_name LIMIT 1');
+    $role_stmt->execute([':role_name' => $user_role]);
+    $role_id = (int) ($role_stmt->fetchColumn() ?: 0);
+} catch (Throwable $e) {
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'error' => 'Database error',
+        'message' => 'Unable to resolve role context.'
+    ]);
+    exit;
+}
+
+if ($role_id <= 0) {
+    http_response_code(403);
+    echo json_encode([
+        'success' => false,
+        'error' => 'Role unavailable',
+        'message' => 'Role mapping not found.'
+    ]);
+    exit;
+}
 
 try {
     // Get recent announcements (last 30 days)

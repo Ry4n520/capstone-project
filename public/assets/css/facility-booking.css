@@ -282,6 +282,14 @@
     background: #f7fafc;
 }
 
+.facility-admin-item.danger {
+    color: #be123c;
+}
+
+.facility-admin-item.danger:hover {
+    background: #fff1f2;
+}
+
 .facility-name {
     font-size: 1.1rem;
     font-weight: 600;
@@ -303,6 +311,11 @@
 .status-occupied {
     background: #fff5f5;
     color: #f56565;
+}
+
+.status-unavailable {
+    background: #edf2f7;
+    color: #4a5568;
 }
 
 .facility-info {
@@ -429,6 +442,16 @@
 
 .fully-booked-card {
     opacity: 0.95;
+}
+
+.facility-unavailable-card {
+    background: #f8fafc;
+    border-style: dashed;
+}
+
+.facility-unavailable-card .facility-name,
+.facility-unavailable-card .facility-info {
+    opacity: 0.88;
 }
 
 /* Bookings Table */
@@ -722,6 +745,148 @@
     cursor: not-allowed;
 }
 
+/* Action Popup (replaces browser alert/confirm) */
+.action-popup {
+    position: fixed;
+    inset: 0;
+    z-index: 2050;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.action-popup-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.56);
+}
+
+.action-popup-content {
+    position: relative;
+    width: min(480px, 92vw);
+    border-radius: 14px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 24px 50px rgba(2, 6, 23, 0.3);
+    overflow: hidden;
+    animation: actionPopupEnter 0.22s ease-out;
+}
+
+@keyframes actionPopupEnter {
+    from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.action-popup-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.95rem 1.1rem;
+    border-bottom: 1px solid #e2e8f0;
+    background: #f8fafc;
+}
+
+.action-popup-header h3 {
+    margin: 0;
+    font-size: 1.04rem;
+    color: #1f2937;
+    font-weight: 700;
+}
+
+.action-popup-close {
+    border: none;
+    background: transparent;
+    color: #64748b;
+    font-size: 1.7rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+}
+
+.action-popup-close:hover {
+    color: #1f2937;
+}
+
+.action-popup-body {
+    padding: 1rem 1.1rem 0.9rem;
+}
+
+#actionPopupMessage {
+    margin: 0;
+    color: #334155;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.action-popup-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.6rem;
+    padding: 0.9rem 1.1rem 1rem;
+    border-top: 1px solid #e2e8f0;
+    background: #f8fafc;
+}
+
+.action-popup-btn {
+    border: 1px solid #cbd5e1;
+    border-radius: 9px;
+    background: #ffffff;
+    color: #1f2937;
+    font-size: 0.88rem;
+    font-weight: 600;
+    padding: 0.5rem 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.action-popup-btn:hover {
+    border-color: #94a3b8;
+    background: #f8fafc;
+}
+
+.action-popup-btn.primary {
+    border-color: #2563eb;
+    background: #2563eb;
+    color: #ffffff;
+}
+
+.action-popup-btn.primary:hover {
+    border-color: #1d4ed8;
+    background: #1d4ed8;
+}
+
+.action-popup-btn.danger {
+    border-color: #dc2626;
+    background: #dc2626;
+    color: #ffffff;
+}
+
+.action-popup-btn.danger:hover {
+    border-color: #b91c1c;
+    background: #b91c1c;
+}
+
+.action-popup-content.is-error .action-popup-header {
+    background: #fef2f2;
+    border-bottom-color: #fecaca;
+}
+
+.action-popup-content.is-success .action-popup-header {
+    background: #f0fdf4;
+    border-bottom-color: #bbf7d0;
+}
+
+.action-popup-content.is-warning .action-popup-header {
+    background: #fffbeb;
+    border-bottom-color: #fde68a;
+}
+
 /* Success Popup */
 .success-popup {
     position: fixed;
@@ -970,6 +1135,13 @@
     color: #ffffff;
 }
 
+.admin-post-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
 /* Hidden sections */
 .hidden {
     display: none;
@@ -1048,5 +1220,14 @@
 
     .filter-tabs {
         flex-wrap: wrap;
+    }
+
+    .action-popup-actions {
+        flex-wrap: wrap;
+    }
+
+    .action-popup-btn {
+        flex: 1;
+        min-width: 120px;
     }
 }

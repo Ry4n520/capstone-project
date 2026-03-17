@@ -193,6 +193,37 @@
     overflow: auto;
 }
 
+#active-session-card {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: min(980px, 94vw);
+    max-height: 88vh;
+    margin: 0;
+    z-index: 2200;
+    overflow: hidden;
+    box-shadow: 0 24px 50px rgba(15, 23, 42, 0.35);
+    border: 1px solid #dbe4f2;
+}
+
+body.lecturer-session-open::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+    z-index: 2100;
+    backdrop-filter: blur(3px);
+}
+
+body.lecturer-session-open {
+    overflow: hidden;
+}
+
+#active-session-card .attendance-list {
+    max-height: min(42vh, 340px);
+}
+
 .attendance-item {
     display: flex;
     justify-content: space-between;
@@ -1022,6 +1053,11 @@
 
     .active-session-content {
         grid-template-columns: 1fr;
+    }
+
+    #active-session-card {
+        width: min(96vw, 640px);
+        max-height: 90vh;
     }
 
     .attendance-stats {

@@ -109,7 +109,16 @@ $total_users = count($users);
                                                 $joined_date = date('d M Y', strtotime((string) $row['date_joined']));
                                             }
                                         ?>
-                                        <tr class="user-row" data-user-id="<?php echo (int) $row['user_id']; ?>">
+                                        <tr
+                                            class="user-row"
+                                            data-user-id="<?php echo (int) $row['user_id']; ?>"
+                                            data-name="<?php echo htmlspecialchars((string) $row['name']); ?>"
+                                            data-email="<?php echo htmlspecialchars((string) $row['email']); ?>"
+                                            data-role="<?php echo htmlspecialchars($role); ?>"
+                                            data-gender="<?php echo htmlspecialchars((string) ($row['gender'] ?: '')); ?>"
+                                            data-phone="<?php echo htmlspecialchars((string) ($row['phone'] ?: '')); ?>"
+                                            data-date-joined="<?php echo htmlspecialchars((string) ($row['date_joined'] ?: '')); ?>"
+                                        >
                                             <td><?php echo (int) $row['user_id']; ?></td>
                                             <td><?php echo htmlspecialchars((string) $row['name']); ?></td>
                                             <td><?php echo htmlspecialchars((string) $row['email']); ?></td>
@@ -161,6 +170,18 @@ $total_users = count($users);
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <div id="userActionModal" class="um-modal hidden" aria-hidden="true">
+        <div class="um-modal-backdrop" data-modal-close></div>
+        <div class="um-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="umModalTitle">
+            <div class="um-modal-header">
+                <h3 id="umModalTitle">Action</h3>
+                <button type="button" class="um-modal-close" id="umModalCloseBtn" aria-label="Close">&times;</button>
+            </div>
+            <div id="umModalBody" class="um-modal-body"></div>
+            <div id="umModalActions" class="um-modal-actions"></div>
         </div>
     </div>
 

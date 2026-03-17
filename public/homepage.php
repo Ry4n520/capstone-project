@@ -13,6 +13,7 @@ date_default_timezone_set('Asia/Kuala_Lumpur');
 $current_datetime = new DateTime();
 $formatted_date = $current_datetime->format('l, F d, Y');
 $formatted_time = $current_datetime->format('g:i A');
+$is_admin = ($user_role === 'admin');
 
 ?>
 <!DOCTYPE html>
@@ -73,16 +74,16 @@ $formatted_time = $current_datetime->format('g:i A');
 
         <!-- Row 2: Today's Classes & Announcements -->
         <div class="card-grid row-2">
-            <!-- Today's Classes Card -->
-            <div class="card">
-                <div class="card-header">Today's Classes</div>
+            <!-- Primary Dashboard Card -->
+            <div class="card" id="primary-dashboard-card">
+                <div class="card-header" id="primary-dashboard-card-title"><?php echo $is_admin ? 'Request Changes' : "Today's Classes"; ?></div>
                 <div class="empty-state">
-                    <p>No classes scheduled for today</p>
+                    <p><?php echo $is_admin ? 'No pending schedule change requests' : 'No classes scheduled for today'; ?></p>
                 </div>
             </div>
 
             <!-- Recent Announcements Card -->
-            <div class="card">
+            <div class="card" id="announcements-card">
                 <div class="card-header">Recent Announcements</div>
                 <div class="empty-state">
                     <p>No announcements at this time</p>
@@ -92,7 +93,7 @@ $formatted_time = $current_datetime->format('g:i A');
 
         <!-- Row 3: Upcoming Facility Bookings -->
         <div class="card-grid row-1">
-            <div class="card">
+            <div class="card" id="bookings-card">
                 <div class="card-header">Upcoming Facility Bookings</div>
                 <div class="empty-state">
                     <p>No upcoming facility bookings</p>
@@ -103,6 +104,12 @@ $formatted_time = $current_datetime->format('g:i A');
 
     <!-- Footer -->
     <?php include 'includes/footer.php'; ?>
+
+    <script>
+        window.homepageConfig = {
+            role: <?php echo json_encode($user_role); ?>
+        };
+    </script>
 
     <script src="assets/js/header.js?v=<?php echo time(); ?>"></script>
     <script src="assets/js/homepage.js?v=<?php echo time(); ?>"></script>

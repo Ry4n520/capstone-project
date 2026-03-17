@@ -1,8 +1,9 @@
 -- Facility seed migration
 -- 1) Add capacity column
--- 2) Import classrooms into facilities
--- 3) Insert meeting/sport facilities
--- 4) Apply capacities by type
+-- 2) Add is_available column
+-- 3) Import classrooms into facilities
+-- 4) Insert meeting/sport facilities
+-- 5) Apply capacities by type
 
 USE capstone_db;
 
@@ -21,6 +22,27 @@ SET @capacity_sql := IF(
 PREPARE stmt_capacity FROM @capacity_sql;
 EXECUTE stmt_capacity;
 DEALLOCATE PREPARE stmt_capacity;
+
+SET @has_is_available := (
+    SELECT COUNT(*)
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'facilities'
+      AND COLUMN_NAME = 'is_available'
+);
+SET @is_available_sql := IF(
+    @has_is_available = 0,
+    'ALTER TABLE facilities ADD COLUMN is_available TINYINT(1) NOT NULL DEFAULT 1 AFTER facility_type',
+    'SELECT 1'
+);
+PREPARE stmt_is_available FROM @is_available_sql;
+EXECUTE stmt_is_available;
+DEALLOCATE PREPARE stmt_is_available;
+
+UPDATE facilities
+SET is_available = 1
+WHERE is_available IS NULL;
+
 
 -- Import all existing classrooms as classroom facilities.
 INSERT INTO facilities (facility_name, location, facility_type)

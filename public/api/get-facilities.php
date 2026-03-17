@@ -31,7 +31,8 @@ if ($normalizedType === null) {
 }
 
 try {
-    $facilities = facility_booking_get_facilities_with_availability($pdo, $normalizedType, $today);
+    $includeUnavailable = $_SESSION['role'] === 'admin';
+    $facilities = facility_booking_get_facilities_with_availability($pdo, $normalizedType, $today, $includeUnavailable);
 
     http_response_code(200);
     echo json_encode([

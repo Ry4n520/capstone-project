@@ -195,7 +195,8 @@ CREATE TABLE IF NOT EXISTS facilities (
     facility_name VARCHAR(120) NOT NULL,
     location VARCHAR(120),
     capacity INT,
-    facility_type VARCHAR(50)
+    facility_type VARCHAR(50),
+    is_available TINYINT(1) NOT NULL DEFAULT 1
 );
 
 -- ===========================================
@@ -305,6 +306,22 @@ SET @capacity_sql := IF(
 PREPARE stmt_capacity FROM @capacity_sql;
 EXECUTE stmt_capacity;
 DEALLOCATE PREPARE stmt_capacity;
+
+SET @has_is_available := (
+    SELECT COUNT(*)
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'facilities'
+      AND COLUMN_NAME = 'is_available'
+);
+SET @is_available_sql := IF(
+    @has_is_available = 0,
+    'ALTER TABLE facilities ADD COLUMN is_available TINYINT(1) NOT NULL DEFAULT 1 AFTER facility_type',
+    'SELECT 1'
+);
+PREPARE stmt_is_available FROM @is_available_sql;
+EXECUTE stmt_is_available;
+DEALLOCATE PREPARE stmt_is_available;
 
 -- Import all classrooms as classroom facilities (idempotent).
 INSERT INTO facilities (facility_name, location, facility_type)

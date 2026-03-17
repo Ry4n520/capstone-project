@@ -53,6 +53,11 @@ function facility_booking_type_title($type)
     return 'Facilities';
 }
 
+function facility_booking_is_available_value($value)
+{
+    return (int) $value === 1;
+}
+
 function facility_booking_has_conflict($existingBookings, $slotStart, $slotEnd)
 {
     foreach ($existingBookings as $booking) {
@@ -124,33 +129,51 @@ function facility_booking_get_slots_for_date(PDO $pdo, $facilityId, $date)
     ];
 }
 
-function facility_booking_get_facilities_with_availability(PDO $pdo, $type, $date)
+function facility_booking_get_facilities_with_availability(PDO $pdo, $type, $date, $includeUnavailable = false)
 {
     $normalizedType = facility_booking_normalize_type($type);
     if ($normalizedType === null) {
         return [];
     }
 
-    $stmt = $pdo->prepare(
-        'SELECT facility_id, facility_name, location, capacity, facility_type
+    $query =
+        'SELECT facility_id, facility_name, location, capacity, facility_type, is_available
          FROM facilities
-         WHERE facility_type = :facility_type
-         ORDER BY facility_name ASC'
-    );
+         WHERE facility_type = :facility_type';
+
+    if (!$includeUnavailable) {
+        $query .= ' AND is_available = 1';
+    }
+
+    $query .= ' ORDER BY facility_name ASC';
+
+    $stmt = $pdo->prepare($query);
 
     $stmt->execute([':facility_type' => $normalizedType]);
     $facilities = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $enriched = [];
     foreach ($facilities as $facility) {
-        $availability = facility_booking_get_slots_for_date($pdo, (int) $facility['facility_id'], $date);
-        $facility['slots'] = $availability['slots'];
-        $facility['all_slots'] = $availability['slots'];  // Include ALL slots (available and booked)
-        $facility['available_slots'] = array_values(array_filter($availability['slots'], function ($slot) {
-            return $slot['available'] === true;
-        }));
-        $facility['available_slots_count'] = $availability['available_slots_count'];
-        $facility['available_count'] = $availability['available_slots_count'];
+        $isAvailable = facility_booking_is_available_value($facility['is_available']);
+        $facility['is_available'] = $isAvailable;
+
+        if ($isAvailable) {
+            $availability = facility_booking_get_slots_for_date($pdo, (int) $facility['facility_id'], $date);
+            $facility['slots'] = $availability['slots'];
+            $facility['all_slots'] = $availability['slots'];
+            $facility['available_slots'] = array_values(array_filter($availability['slots'], function ($slot) {
+                return $slot['available'] === true;
+            }));
+            $facility['available_slots_count'] = $availability['available_slots_count'];
+            $facility['available_count'] = $availability['available_slots_count'];
+        } else {
+            $facility['slots'] = [];
+            $facility['all_slots'] = [];
+            $facility['available_slots'] = [];
+            $facility['available_slots_count'] = 0;
+            $facility['available_count'] = 0;
+        }
+
         $enriched[] = $facility;
     }
 

@@ -3,7 +3,7 @@
  * Homepage Data API - DEBUGGED VERSION
  * 
  * Provides dynamic data for homepage dashboard:
- * - Today's classes
+ * - Today's classes / admin request changes
  * - Attendance rate
  * - Upcoming bookings
  * - Recent announcements
@@ -40,7 +40,7 @@ $debug = []; // For debugging
 error_log("Homepage API called - user_id: $user_id, role: $role, today: $today, day: $current_day");
 
 try {
-    // 1. TODAY'S CLASSES (for students)
+    // 1. TODAY'S CLASSES
     if ($role === 'student') {
         $classes_query = "
             SELECT 
@@ -64,19 +64,18 @@ try {
             JOIN enrollments e ON cs.section_id = e.section_id
             WHERE e.student_id = :user_id
             AND e.status = 'active'
-            AND t.week_start_date <= :today
-            AND t.week_end_date >= :today
-            AND t.day_of_week = :current_day
+            AND t.week_start_date <= :today_start
+            AND t.week_end_date >= :today_end
+            AND LOWER(t.day_of_week) = LOWER(:current_day)
             AND t.status = 'released'
-            AND t.start_time >= CURTIME()
             ORDER BY t.start_time ASC
-            LIMIT 3
         ";
         
         $stmt = $pdo->prepare($classes_query);
         $stmt->execute([
             ':user_id' => $user_id,
-            ':today' => $today,
+            ':today_start' => $today,
+            ':today_end' => $today,
             ':current_day' => $current_day
         ]);
         $response['todays_classes'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -88,6 +87,50 @@ try {
         ];
         $debug['classes_count'] = count($response['todays_classes']);
         error_log("Today's classes: " . count($response['todays_classes']) . " classes found");
+    } elseif ($role === 'staff') {
+        $classes_query = "
+            SELECT 
+                c.course_name,
+                cs.section_code,
+                t.start_time,
+                t.end_time,
+                COALESCE(cl.room_name, 'TBA') AS room_name,
+                COALESCE(cl.building, '') AS building,
+                CONCAT('Section ', cs.section_code) AS lecturer_name,
+                CASE 
+                    WHEN CURTIME() BETWEEN t.start_time AND t.end_time THEN 'ongoing'
+                    WHEN CURTIME() < t.start_time THEN 'upcoming'
+                    ELSE 'completed'
+                END as class_status
+            FROM timetables t
+            JOIN course_sections cs ON t.section_id = cs.section_id
+            JOIN courses c ON cs.course_id = c.course_id
+            LEFT JOIN classrooms cl ON t.room_id = cl.room_id
+            WHERE cs.lecturer_id = :user_id
+            AND t.week_start_date <= :today_start
+            AND t.week_end_date >= :today_end
+            AND LOWER(t.day_of_week) = LOWER(:current_day)
+            AND t.status = 'released'
+            ORDER BY t.start_time ASC
+        ";
+
+        $stmt = $pdo->prepare($classes_query);
+        $stmt->execute([
+            ':user_id' => $user_id,
+            ':today_start' => $today,
+            ':today_end' => $today,
+            ':current_day' => $current_day
+        ]);
+        $response['todays_classes'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $debug['classes_query_params'] = [
+            'user_id' => $user_id,
+            'today' => $today,
+            'current_day' => $current_day,
+            'mode' => 'lecturer'
+        ];
+        $debug['classes_count'] = count($response['todays_classes']);
+        error_log("Today's lecturer classes: " . count($response['todays_classes']) . " classes found");
     } else {
         $response['todays_classes'] = [];
     }
@@ -96,6 +139,63 @@ try {
     error_log("Today's classes query error: " . $e->getMessage());
     $response['todays_classes'] = [];
     $debug['classes_error'] = $e->getMessage();
+}
+
+try {
+    // 1B. ADMIN REQUEST CHANGES
+    if ($role === 'admin') {
+        $requests_query = "
+            SELECT
+                sr.request_id,
+                sr.day_of_week,
+                sr.week_start_date,
+                sr.week_end_date,
+                sr.start_time,
+                sr.end_time,
+                sr.requested_at,
+                c.course_name,
+                cs.section_code,
+                u.name AS lecturer_name,
+                requested_room.room_name AS requested_room_name,
+                requested_room.building AS requested_building,
+                COALESCE(original_room.room_name, current_room.room_name, legacy_room.room_name) AS current_room_name,
+                COALESCE(original_room.building, current_room.building, legacy_room.building) AS current_building,
+                COALESCE(sr.original_day_of_week, t.day_of_week, legacy_t.day_of_week) AS current_day_of_week,
+                COALESCE(sr.original_start_time, t.start_time, legacy_t.start_time) AS current_start_time,
+                COALESCE(sr.original_end_time, t.end_time, legacy_t.end_time) AS current_end_time
+            FROM schedule_requests sr
+            INNER JOIN course_sections cs ON sr.section_id = cs.section_id
+            INNER JOIN courses c ON cs.course_id = c.course_id
+            INNER JOIN users u ON cs.lecturer_id = u.user_id
+            INNER JOIN classrooms requested_room ON sr.room_id = requested_room.room_id
+            LEFT JOIN classrooms original_room ON sr.original_room_id = original_room.room_id
+            LEFT JOIN timetables t
+                ON t.timetable_id = sr.source_timetable_id
+            LEFT JOIN timetables legacy_t
+                ON sr.source_timetable_id IS NULL
+               AND legacy_t.section_id = sr.section_id
+               AND legacy_t.week_start_date = sr.week_start_date
+               AND legacy_t.start_time = sr.start_time
+               AND legacy_t.end_time = sr.end_time
+            LEFT JOIN classrooms current_room ON t.room_id = current_room.room_id
+            LEFT JOIN classrooms legacy_room ON legacy_t.room_id = legacy_room.room_id
+            WHERE sr.status = 'pending'
+            ORDER BY sr.requested_at ASC
+            LIMIT 3
+        ";
+
+        $stmt = $pdo->query($requests_query);
+        $response['schedule_requests'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $debug['schedule_requests_count'] = count($response['schedule_requests']);
+        error_log("Homepage schedule requests: " . count($response['schedule_requests']) . " pending requests found");
+    } else {
+        $response['schedule_requests'] = [];
+    }
+} catch (Exception $e) {
+    error_log("Homepage schedule requests query error: " . $e->getMessage());
+    $response['schedule_requests'] = [];
+    $debug['schedule_requests_error'] = $e->getMessage();
 }
 
 try {

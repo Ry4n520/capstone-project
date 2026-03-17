@@ -214,6 +214,235 @@
     display: none;
 }
 
+.um-modal-open {
+    overflow: hidden;
+}
+
+.um-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+}
+
+.um-modal.show {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.um-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(3px);
+}
+
+.um-modal-dialog {
+    position: relative;
+    width: 100%;
+    max-width: 520px;
+    max-height: calc(100vh - 2rem);
+    background: #ffffff;
+    border-radius: 14px;
+    border: 1px solid #dbe5ff;
+    box-shadow: 0 24px 50px rgba(15, 23, 42, 0.24);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    animation: um-modal-enter 0.2s ease-out;
+}
+
+@keyframes um-modal-enter {
+    from {
+        opacity: 0;
+        transform: translateY(6px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.um-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.1rem;
+    border-bottom: 1px solid #e2e8f0;
+    background: #f8faff;
+}
+
+.um-modal-header h3 {
+    margin: 0;
+    color: #1e293b;
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.um-modal-close {
+    border: none;
+    background: transparent;
+    color: #64748b;
+    font-size: 1.7rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 0.2rem;
+}
+
+.um-modal-close:hover {
+    color: #1e293b;
+}
+
+.um-modal-body {
+    padding: 1rem 1.1rem;
+    overflow-y: auto;
+}
+
+.um-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.6rem;
+    padding: 0.9rem 1.1rem 1rem;
+    border-top: 1px solid #e2e8f0;
+    background: #f8fafc;
+}
+
+.um-btn {
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    background: #ffffff;
+    color: #1f2937;
+    font-size: 0.9rem;
+    font-weight: 600;
+    padding: 0.55rem 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.um-btn:hover {
+    border-color: #8ea1ff;
+    color: #1e3a8a;
+}
+
+.um-btn.primary {
+    border-color: #2563eb;
+    background: #2563eb;
+    color: #ffffff;
+}
+
+.um-btn.primary:hover {
+    border-color: #1d4ed8;
+    background: #1d4ed8;
+    color: #ffffff;
+}
+
+.um-btn.danger {
+    border-color: #dc2626;
+    background: #dc2626;
+    color: #ffffff;
+}
+
+.um-btn.danger:hover {
+    border-color: #b91c1c;
+    background: #b91c1c;
+    color: #ffffff;
+}
+
+.um-btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+.um-form-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.8rem;
+}
+
+.um-form-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.35rem;
+}
+
+.um-form-row label {
+    color: #334155;
+    font-size: 0.84rem;
+    font-weight: 600;
+}
+
+.um-form-row input,
+.um-form-row select {
+    border: 1px solid #cbd5e1;
+    border-radius: 9px;
+    padding: 0.58rem 0.65rem;
+    color: #0f172a;
+    font-size: 0.9rem;
+    background: #ffffff;
+}
+
+.um-form-row input:focus,
+.um-form-row select:focus {
+    outline: none;
+    border-color: #7c8cff;
+    box-shadow: 0 0 0 3px rgba(124, 140, 255, 0.2);
+}
+
+.um-form-hint {
+    color: #64748b;
+    font-size: 0.78rem;
+}
+
+.um-form-error {
+    border-radius: 10px;
+    border: 1px solid #fecaca;
+    background: #fef2f2;
+    color: #991b1b;
+    padding: 0.6rem 0.7rem;
+    font-size: 0.84rem;
+}
+
+.um-profile-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 0.6rem;
+}
+
+.um-profile-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    border-bottom: 1px solid #f1f5f9;
+    padding-bottom: 0.45rem;
+}
+
+.um-profile-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.um-profile-item span {
+    color: #334155;
+    font-size: 0.88rem;
+    font-weight: 600;
+}
+
+.um-profile-item strong {
+    color: #0f172a;
+    font-size: 0.9rem;
+    text-align: right;
+}
+
+.um-confirm-text {
+    margin: 0;
+    color: #1f2937;
+    font-size: 0.95rem;
+    line-height: 1.45;
+}
+
 @media screen and (max-width: 1024px) {
     .user-management-layout {
         grid-template-columns: minmax(0, 1.8fr) minmax(260px, 1fr);
@@ -244,6 +473,19 @@
 
     .visible-count {
         white-space: normal;
+    }
+
+    .um-modal-dialog {
+        max-height: calc(100vh - 1.5rem);
+    }
+
+    .um-modal-actions {
+        flex-wrap: wrap;
+    }
+
+    .um-btn {
+        flex: 1;
+        min-width: 120px;
     }
 }
 

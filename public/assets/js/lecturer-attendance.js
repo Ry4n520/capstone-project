@@ -118,8 +118,10 @@ function setActiveSessionVisible(isVisible) {
 
     if (isVisible) {
         card.classList.remove('hidden');
+        document.body.classList.add('lecturer-session-open');
     } else {
         card.classList.add('hidden');
+        document.body.classList.remove('lecturer-session-open');
     }
 }
 
@@ -270,11 +272,6 @@ async function endClass() {
         return;
     }
 
-    const shouldEnd = window.confirm('End this attendance session? Students will no longer be able to submit the code.');
-    if (!shouldEnd) {
-        return;
-    }
-
     try {
         const response = await fetch('api/end-class.php', {
             method: 'POST',
@@ -314,5 +311,6 @@ window.startClass = startClass;
 window.endClass = endClass;
 
 document.addEventListener('DOMContentLoaded', () => {
+    document.body.classList.remove('lecturer-session-open');
     loadLecturerClasses();
 });

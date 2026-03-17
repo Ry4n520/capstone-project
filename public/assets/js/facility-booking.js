@@ -21,6 +21,9 @@ let selectedTimeSlot = null;
 let bookingMode = 'today';
 let activeCategoryType = null;
 let editingBookingId = null;
+let adminFacilityFormMode = 'create';
+let editingFacilityId = null;
+let editingFacilityOriginalType = null;
 
 const facilityTypeTitles = {
     classroom: 'Classrooms',
@@ -30,6 +33,10 @@ const facilityTypeTitles = {
 
 const facilitiesById = {};
 const facilitiesSelectedSlots = {}; // Track selected slots per facility
+
+function isFacilityAvailableForBooking(facility) {
+    return Boolean(facility && (facility.is_available === true || Number(facility.is_available) === 1));
+}
 
 function showFacilities(category) {
     activeCategoryType = normalizeFacilityType(category);
@@ -78,9 +85,12 @@ async function loadFacilitiesForCategory(categoryType) {
             throw new Error(data.error || 'Failed to load facilities.');
         }
 
-        displayFacilities(data.facilities || []);
+        const facilities = data.facilities || [];
+        displayFacilities(facilities);
+        return facilities;
     } catch (error) {
         facilityGrid.innerHTML = `<div class="facility-empty-state">${error.message}</div>`;
+        return [];
     }
 }
 
@@ -99,23 +109,36 @@ function displayFacilities(facilities) {
         facilitiesSelectedSlots[facility.facility_id] = null;
 
         const availableCount = Number(facility.available_count || 0);
-        const isFullyBookedToday = availableCount === 0;
-        
-        // Display ALL slots (both available and booked)
-        // Use all_slots if available, otherwise fall back to slots
-        const allSlots = facility.all_slots || facility.available_slots || [];
-        const slotsHtml = allSlots
-            .map(slot => {
-                // Mark booked slots with 'booked' class
-                const booked = !slot.available ? 'booked' : '';
-                return `<span class="time-slot ${booked}" data-start="${slot.start}" data-end="${slot.end}" data-label="${escapeHtml(slot.label)}" 
-                    ${!slot.available ? 'title="Already booked"' : 'onclick="selectFacilityTimeSlot(event, ' + Number(facility.facility_id) + ')"'}
-                    >${slot.label}</span>`;
-            })
-            .join('');
+        const facilityIsAvailable = isFacilityAvailableForBooking(facility);
+        const isFullyBookedToday = facilityIsAvailable && availableCount === 0;
+
+        let slotsHtml = '<span class="time-slot booked">Unavailable for booking</span>';
+
+        if (facilityIsAvailable) {
+            const allSlots = facility.all_slots || facility.available_slots || [];
+            slotsHtml = allSlots
+                .map(slot => {
+                    const booked = !slot.available ? 'booked' : '';
+                    return `<span class="time-slot ${booked}" data-start="${slot.start}" data-end="${slot.end}" data-label="${escapeHtml(slot.label)}" 
+                        ${!slot.available ? 'title="Already booked"' : 'onclick="selectFacilityTimeSlot(event, ' + Number(facility.facility_id) + ')"'}
+                        >${slot.label}</span>`;
+                })
+                .join('');
+
+            if (!slotsHtml) {
+                slotsHtml = '<span class="time-slot booked">All booked</span>';
+            }
+        }
+
+        const availabilityBadgeClass = !facilityIsAvailable
+            ? 'status-unavailable'
+            : (isFullyBookedToday ? 'status-occupied' : 'status-available');
+        const availabilityText = !facilityIsAvailable
+            ? 'Unavailable'
+            : (isFullyBookedToday ? 'Fully Booked' : `${availableCount} Slots Available`);
 
         const card = document.createElement('div');
-        card.className = `facility-card ${isFullyBookedToday ? 'fully-booked-card' : ''}`;
+        card.className = `facility-card ${!facilityIsAvailable ? 'facility-unavailable-card' : ''} ${isFullyBookedToday ? 'fully-booked-card' : ''}`.trim();
         card.setAttribute('data-facility-id', facility.facility_id);
 
         const adminControls = isAdminUser
@@ -130,9 +153,9 @@ function displayFacilities(facilities) {
                         aria-expanded="false"
                     >⋮</button>
                     <div class="facility-admin-menu" id="facility-admin-menu-${Number(facility.facility_id)}">
-                        <button type="button" class="facility-admin-item">Edit Facility</button>
-                        <button type="button" class="facility-admin-item">Delete Facility</button>
-                        <button type="button" class="facility-admin-item">Set Unavailable</button>
+                        <button type="button" class="facility-admin-item" data-facility-action="edit" data-facility-id="${Number(facility.facility_id)}">Edit Facility</button>
+                        <button type="button" class="facility-admin-item danger" data-facility-action="delete" data-facility-id="${Number(facility.facility_id)}">Delete Facility</button>
+                        <button type="button" class="facility-admin-item" data-facility-action="toggle-availability" data-facility-id="${Number(facility.facility_id)}">${facilityIsAvailable ? 'Set Unavailable' : 'Set Available'}</button>
                     </div>
                 </div>
             `
@@ -142,8 +165,8 @@ function displayFacilities(facilities) {
             <div class="facility-header">
                 <div class="facility-name">${escapeHtml(facility.facility_name)}</div>
                 <div class="facility-header-right">
-                    <span class="status-badge ${isFullyBookedToday ? 'status-occupied' : 'status-available'}">
-                        ${isFullyBookedToday ? 'Fully Booked' : `${availableCount} Slots Available`}
+                    <span class="status-badge ${availabilityBadgeClass}">
+                        ${availabilityText}
                     </span>
                     ${adminControls}
                 </div>
@@ -153,20 +176,21 @@ function displayFacilities(facilities) {
                 <span>📍 ${escapeHtml(facility.location || 'Campus')}</span>
             </div>
             <div class="time-slots">
-                <div class="time-slots-label">Available Slots Today:</div>
-                <div class="slots" data-facility-slots="${facility.facility_id}">${slotsHtml || '<span class="time-slot booked">All booked</span>'}</div>
+                <div class="time-slots-label">${facilityIsAvailable ? 'Available Slots Today:' : 'Booking Status:'}</div>
+                <div class="slots" data-facility-slots="${facility.facility_id}">${slotsHtml}</div>
             </div>
             <div class="booking-buttons">
                 <button
                     class="book-btn book-now-btn"
                     onclick="handleBookNowClick(${Number(facility.facility_id)})"
-                    ${isFullyBookedToday ? 'disabled' : ''}
+                    ${(!facilityIsAvailable || isFullyBookedToday) ? 'disabled' : ''}
                 >
                     Book Now
                 </button>
                 <button
                     class="book-btn book-advance-btn"
                     onclick="openBookingModal(${Number(facility.facility_id)}, 'advance')"
+                    ${!facilityIsAvailable ? 'disabled' : ''}
                 >
                     Book in Advance
                 </button>
@@ -184,7 +208,15 @@ function openAdminFacilityModal() {
 
     const modal = document.getElementById('adminFacilityModal');
     if (modal) {
+        resetAdminFacilityForm();
         modal.classList.remove('hidden');
+
+        const nameInput = document.getElementById('admin-facility-name');
+        if (nameInput) {
+            window.setTimeout(() => {
+                nameInput.focus();
+            }, 0);
+        }
     }
 }
 
@@ -192,6 +224,330 @@ function closeAdminFacilityModal() {
     const modal = document.getElementById('adminFacilityModal');
     if (modal) {
         modal.classList.add('hidden');
+    }
+
+    resetAdminFacilityForm();
+}
+
+function resetAdminFacilityForm() {
+    const form = document.getElementById('adminFacilityForm');
+    const titleEl = document.getElementById('adminFacilityModalTitle');
+    if (form) {
+        form.reset();
+    }
+
+    adminFacilityFormMode = 'create';
+    editingFacilityId = null;
+    editingFacilityOriginalType = null;
+
+    if (titleEl) {
+        titleEl.textContent = 'Add New Facility';
+    }
+
+    const categorySelect = document.getElementById('admin-facility-category');
+    if (categorySelect) {
+        categorySelect.value = activeCategoryType || 'classroom';
+    }
+
+    const submitButton = document.getElementById('admin-facility-submit-btn');
+    if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.textContent = 'Post';
+    }
+}
+
+function openEditFacilityModal(facilityId) {
+    if (!isAdminUser) {
+        return;
+    }
+
+    const facility = facilitiesById[facilityId];
+    if (!facility) {
+        showErrorPopup('Facility data could not be loaded. Please refresh and try again.', 'Facility Not Found');
+        return;
+    }
+
+    const modal = document.getElementById('adminFacilityModal');
+    const titleEl = document.getElementById('adminFacilityModalTitle');
+    const nameInput = document.getElementById('admin-facility-name');
+    const categorySelect = document.getElementById('admin-facility-category');
+    const locationInput = document.getElementById('admin-facility-location');
+    const capacityInput = document.getElementById('admin-facility-capacity');
+    const submitButton = document.getElementById('admin-facility-submit-btn');
+
+    if (!modal || !titleEl || !nameInput || !categorySelect || !locationInput || !capacityInput || !submitButton) {
+        return;
+    }
+
+    resetAdminFacilityForm();
+
+    adminFacilityFormMode = 'edit';
+    editingFacilityId = Number(facilityId);
+    editingFacilityOriginalType = normalizeFacilityType(facility.facility_type);
+
+    titleEl.textContent = 'Edit Facility';
+    nameInput.value = facility.facility_name || '';
+    categorySelect.value = normalizeFacilityType(facility.facility_type) || 'classroom';
+    locationInput.value = facility.location || '';
+    capacityInput.value = Number(facility.capacity || 0) || '';
+    submitButton.textContent = 'Save Changes';
+
+    modal.classList.remove('hidden');
+
+    window.setTimeout(() => {
+        nameInput.focus();
+        nameInput.select();
+    }, 0);
+}
+
+function updateCategoryCount(categoryType, facilities) {
+    const normalizedType = normalizeFacilityType(categoryType);
+    const countEl = document.querySelector(`[data-category-count-type="${normalizedType}"]`);
+    if (!countEl) {
+        return;
+    }
+
+    const availableCount = (facilities || []).filter(facility => Number(facility.available_count || 0) > 0).length;
+    const label = countEl.getAttribute('data-category-count-label') || 'available';
+
+    countEl.setAttribute('data-category-count-value', String(availableCount));
+    countEl.textContent = `${availableCount} ${label}`;
+}
+
+async function refreshCategoryCount(categoryType) {
+    const normalizedType = normalizeFacilityType(categoryType);
+    if (!normalizedType) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`api/get-facilities.php?type=${encodeURIComponent(normalizedType)}`);
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to refresh category count.');
+        }
+
+        updateCategoryCount(normalizedType, data.facilities || []);
+    } catch (error) {
+        console.error('Facility count refresh failed:', error);
+    }
+}
+
+async function refreshFacilityManagementState(categoryTypes) {
+    const normalizedTypes = Array.from(new Set((categoryTypes || [])
+        .map(type => normalizeFacilityType(type))
+        .filter(Boolean)));
+
+    if (activeCategoryType) {
+        const activeFacilities = await loadFacilitiesForCategory(activeCategoryType);
+        updateCategoryCount(activeCategoryType, activeFacilities);
+    }
+
+    for (const type of normalizedTypes) {
+        if (type !== activeCategoryType) {
+            await refreshCategoryCount(type);
+        }
+    }
+}
+
+async function submitAdminFacilityForm(event) {
+    if (event) {
+        event.preventDefault();
+    }
+
+    if (!isAdminUser) {
+        return false;
+    }
+
+    const nameInput = document.getElementById('admin-facility-name');
+    const categorySelect = document.getElementById('admin-facility-category');
+    const locationInput = document.getElementById('admin-facility-location');
+    const capacityInput = document.getElementById('admin-facility-capacity');
+    const submitButton = document.getElementById('admin-facility-submit-btn');
+
+    if (!nameInput || !categorySelect || !locationInput || !capacityInput || !submitButton) {
+        return false;
+    }
+
+    const facilityName = nameInput.value.trim();
+    const facilityType = normalizeFacilityType(categorySelect.value);
+    const location = locationInput.value.trim();
+    const capacity = Number.parseInt(capacityInput.value, 10);
+    const isEditMode = adminFacilityFormMode === 'edit' && Number(editingFacilityId) > 0;
+
+    if (!facilityName || !facilityType || !location || !capacityInput.value.trim()) {
+        await showInfoPopup('Please complete facility name, category, location, and capacity.', 'Missing Details');
+        return false;
+    }
+
+    if (!Number.isInteger(capacity) || capacity < 1) {
+        await showInfoPopup('Capacity must be a whole number greater than 0.', 'Invalid Capacity');
+        return false;
+    }
+
+    if (facilityName.length > 120 || location.length > 120) {
+        await showInfoPopup('Facility name and location must be 120 characters or fewer.', 'Value Too Long');
+        return false;
+    }
+
+    submitButton.disabled = true;
+    submitButton.textContent = isEditMode ? 'Saving...' : 'Posting...';
+
+    try {
+        const response = await fetch(isEditMode ? 'api/update-facility.php' : 'api/create-facility.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                ...(isEditMode ? { facility_id: Number(editingFacilityId) } : {}),
+                facility_name: facilityName,
+                facility_type: facilityType,
+                location: location,
+                capacity: capacity
+            })
+        });
+
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || data.error || 'Failed to create facility.');
+        }
+
+        const originalFacilityType = editingFacilityOriginalType;
+        closeAdminFacilityModal();
+        await refreshFacilityManagementState([facilityType, originalFacilityType]);
+
+        await showActionPopup({
+            title: isEditMode ? 'Facility Updated' : 'Facility Added',
+            message: data.message || (isEditMode ? 'Facility updated successfully.' : 'Facility created successfully.'),
+            confirmText: 'OK',
+            variant: 'success'
+        });
+    } catch (error) {
+        await showErrorPopup(
+            (isEditMode ? 'Failed to update facility: ' : 'Failed to create facility: ') + error.message,
+            isEditMode ? 'Update Facility Failed' : 'Create Facility Failed'
+        );
+    } finally {
+        if (submitButton.isConnected) {
+            submitButton.disabled = false;
+            submitButton.textContent = adminFacilityFormMode === 'edit' ? 'Save Changes' : 'Post';
+        }
+    }
+
+    return false;
+}
+
+async function deleteFacility(facilityId) {
+    if (!isAdminUser) {
+        return;
+    }
+
+    const facility = facilitiesById[facilityId];
+    if (!facility) {
+        await showErrorPopup('Facility data could not be loaded. Please refresh and try again.', 'Facility Not Found');
+        return;
+    }
+
+    const confirmed = await showConfirmPopup(`Delete ${facility.facility_name}? This only works when there are no booking records for the facility.`, {
+        title: 'Delete Facility',
+        confirmText: 'Delete Facility',
+        variant: 'warning',
+        isDanger: true
+    });
+
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+        const response = await fetch('api/delete-facility.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                facility_id: Number(facilityId)
+            })
+        });
+
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || data.error || 'Failed to delete facility.');
+        }
+
+        delete facilitiesById[facilityId];
+        delete facilitiesSelectedSlots[facilityId];
+        await refreshFacilityManagementState([facility.facility_type]);
+
+        await showActionPopup({
+            title: 'Facility Deleted',
+            message: data.message || 'Facility deleted successfully.',
+            confirmText: 'OK',
+            variant: 'success'
+        });
+    } catch (error) {
+        await showErrorPopup('Failed to delete facility: ' + error.message, 'Delete Facility Failed');
+    }
+}
+
+async function toggleFacilityAvailability(facilityId) {
+    if (!isAdminUser) {
+        return;
+    }
+
+    const facility = facilitiesById[facilityId];
+    if (!facility) {
+        await showErrorPopup('Facility data could not be loaded. Please refresh and try again.', 'Facility Not Found');
+        return;
+    }
+
+    const nextAvailability = !isFacilityAvailableForBooking(facility);
+    const actionLabel = nextAvailability ? 'Set Available' : 'Set Unavailable';
+    const confirmed = await showConfirmPopup(`${actionLabel} for ${facility.facility_name}?`, {
+        title: actionLabel,
+        confirmText: actionLabel,
+        variant: 'warning'
+    });
+
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+        const response = await fetch('api/toggle-facility-availability.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                facility_id: Number(facilityId),
+                is_available: nextAvailability
+            })
+        });
+
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || data.error || 'Failed to update facility availability.');
+        }
+
+        facilitiesById[facilityId] = {
+            ...facility,
+            is_available: nextAvailability,
+            available_count: nextAvailability ? facility.available_count : 0,
+            available_slots_count: nextAvailability ? facility.available_slots_count : 0
+        };
+        await refreshFacilityManagementState([facility.facility_type]);
+
+        await showActionPopup({
+            title: nextAvailability ? 'Facility Available' : 'Facility Unavailable',
+            message: data.message || (nextAvailability ? 'Facility is now available for booking.' : 'Facility has been set as unavailable.'),
+            confirmText: 'OK',
+            variant: 'success'
+        });
+    } catch (error) {
+        await showErrorPopup('Failed to update facility availability: ' + error.message, 'Availability Update Failed');
     }
 }
 
@@ -268,6 +624,12 @@ function selectFacilityTimeSlot(event, facilityId) {
 }
 
 function handleBookNowClick(facilityId) {
+    const facility = facilitiesById[facilityId];
+    if (!isFacilityAvailableForBooking(facility)) {
+        showErrorPopup('This facility is currently unavailable for booking.', 'Facility Unavailable');
+        return;
+    }
+
     const selectedSlot = facilitiesSelectedSlots[facilityId];
 
     if (selectedSlot) {
@@ -283,7 +645,12 @@ async function directlyBookFacility(facilityId, slot, confirmBtn) {
     const facility = facilitiesById[facilityId];
 
     if (!facility) {
-        alert('Unable to load selected facility. Please refresh and try again.');
+        await showErrorPopup('Unable to load selected facility. Please refresh and try again.', 'Facility Not Available');
+        return;
+    }
+
+    if (!isFacilityAvailableForBooking(facility)) {
+        await showErrorPopup('This facility is currently unavailable for booking.', 'Facility Unavailable');
         return;
     }
 
@@ -326,7 +693,7 @@ async function directlyBookFacility(facilityId, slot, confirmBtn) {
             time: slot.label
         });
     } catch (error) {
-        alert(`Booking failed: ${error.message}`);
+        await showErrorPopup(`Booking failed: ${error.message}`, 'Booking Failed');
         confirmBtn.disabled = false;
         confirmBtn.textContent = originalText;
     }
@@ -336,7 +703,12 @@ function openBookingModal(facilityId, mode) {
     const facility = facilitiesById[facilityId];
 
     if (!facility) {
-        alert('Unable to load selected facility. Please refresh and try again.');
+        showErrorPopup('Unable to load selected facility. Please refresh and try again.', 'Facility Not Available');
+        return;
+    }
+
+    if (!isFacilityAvailableForBooking(facility)) {
+        showErrorPopup('This facility is currently unavailable for booking.', 'Facility Unavailable');
         return;
     }
 
@@ -459,7 +831,13 @@ function selectTimeSlot(slot, element) {
 
 async function submitBooking() {
     if (!selectedFacilityId || !selectedDate || !selectedTimeSlot) {
-        alert('Please select a time slot before confirming.');
+        await showInfoPopup('Please select a time slot before confirming.', 'Select Time Slot');
+        return;
+    }
+
+    const selectedFacility = facilitiesById[selectedFacilityId];
+    if (!isFacilityAvailableForBooking(selectedFacility)) {
+        await showErrorPopup('This facility is currently unavailable for booking.', 'Facility Unavailable');
         return;
     }
 
@@ -494,7 +872,7 @@ async function submitBooking() {
             time: selectedTimeSlot.label
         });
     } catch (error) {
-        alert(`Booking failed: ${error.message}`);
+        await showErrorPopup(`Booking failed: ${error.message}`, 'Booking Failed');
     } finally {
         confirmButton.disabled = false;
         confirmButton.textContent = 'Confirm Booking';
@@ -521,7 +899,14 @@ function closeBookingModal() {
  * Cancels a booking (only future bookings can be cancelled)
  */
 async function cancelBooking(bookingId) {
-    if (!confirm('Are you sure you want to cancel this booking?')) {
+    const confirmed = await showConfirmPopup('Are you sure you want to cancel this booking?', {
+        title: 'Cancel Booking',
+        confirmText: 'Cancel Booking',
+        variant: 'warning',
+        isDanger: true
+    });
+
+    if (!confirmed) {
         return;
     }
     
@@ -537,11 +922,16 @@ async function cancelBooking(bookingId) {
         if (!response.ok || !data.success) {
             throw new Error(data.message || 'Failed to cancel booking');
         }
-        
-        alert('Booking cancelled successfully');
+
+        await showActionPopup({
+            title: 'Booking Cancelled',
+            message: data.message || 'Booking cancelled successfully.',
+            confirmText: 'OK',
+            variant: 'success'
+        });
         location.reload();
     } catch (error) {
-        alert('Failed to cancel: ' + error.message);
+        await showErrorPopup('Failed to cancel: ' + error.message, 'Cancel Failed');
     }
 }
 
@@ -552,7 +942,7 @@ function openEditBookingModal(bookingId) {
 
     const row = document.querySelector(`tr[data-booking-id="${bookingId}"]`);
     if (!row) {
-        alert('Booking row not found. Please refresh and try again.');
+        showErrorPopup('Booking row not found. Please refresh and try again.', 'Booking Not Found');
         return;
     }
 
@@ -621,12 +1011,12 @@ async function submitBookingEdit() {
     const endTimeRaw = endInput.value;
 
     if (!bookingDate || !startTimeRaw || !endTimeRaw) {
-        alert('Please provide booking date, start time, and end time.');
+        await showInfoPopup('Please provide booking date, start time, and end time.', 'Missing Details');
         return;
     }
 
     if (startTimeRaw >= endTimeRaw) {
-        alert('Start time must be before end time.');
+        await showInfoPopup('Start time must be before end time.', 'Invalid Time Range');
         return;
     }
 
@@ -650,11 +1040,16 @@ async function submitBookingEdit() {
             throw new Error(data.message || data.error || 'Failed to update booking.');
         }
 
-        alert('Booking updated successfully');
+        await showActionPopup({
+            title: 'Booking Updated',
+            message: data.message || 'Booking updated successfully.',
+            confirmText: 'OK',
+            variant: 'success'
+        });
         closeEditBookingModal();
         window.location.reload();
     } catch (error) {
-        alert('Failed to update booking: ' + error.message);
+        await showErrorPopup('Failed to update booking: ' + error.message, 'Update Failed');
     }
 }
 
@@ -663,7 +1058,14 @@ async function deleteBooking(bookingId) {
         return;
     }
 
-    if (!confirm('Delete this booking permanently?')) {
+    const confirmed = await showConfirmPopup('Delete this booking permanently?', {
+        title: 'Delete Booking',
+        confirmText: 'Delete Booking',
+        variant: 'warning',
+        isDanger: true
+    });
+
+    if (!confirmed) {
         return;
     }
 
@@ -679,10 +1081,15 @@ async function deleteBooking(bookingId) {
             throw new Error(data.message || data.error || 'Failed to delete booking.');
         }
 
-        alert('Booking deleted successfully');
+        await showActionPopup({
+            title: 'Booking Deleted',
+            message: data.message || 'Booking deleted successfully.',
+            confirmText: 'OK',
+            variant: 'success'
+        });
         window.location.reload();
     } catch (error) {
-        alert('Failed to delete booking: ' + error.message);
+        await showErrorPopup('Failed to delete booking: ' + error.message, 'Delete Failed');
     }
 }
 
@@ -706,7 +1113,7 @@ async function validateAndLoadSlots() {
         const data = await response.json();
         
         if (data.is_holiday) {
-            alert(`Cannot book on ${data.holiday_name}. Please select another date.`);
+            await showInfoPopup(`Cannot book on ${data.holiday_name}. Please select another date.`, 'Public Holiday');
             dateInput.value = '';
             document.getElementById('time-slots-container').innerHTML = 
                 '<div class="facility-empty-state">Select a date to view available slots.</div>';
@@ -765,6 +1172,143 @@ function escapeHtml(text) {
         .replace(/'/g, '&#039;');
 }
 
+function showActionPopup(options) {
+    const popup = document.getElementById('actionPopup');
+    const popupContent = document.getElementById('actionPopupContent');
+    const titleEl = document.getElementById('actionPopupTitle');
+    const messageEl = document.getElementById('actionPopupMessage');
+    const actionsEl = document.getElementById('actionPopupActions');
+    const closeBtn = document.getElementById('actionPopupClose');
+
+    const config = options || {};
+    const allowCancel = Boolean(config.showCancel);
+
+    if (!popup || !popupContent || !titleEl || !messageEl || !actionsEl || !closeBtn) {
+        return Promise.resolve(!allowCancel);
+    }
+
+    titleEl.textContent = config.title || 'Notice';
+    messageEl.textContent = config.message || '';
+
+    popupContent.classList.remove('is-error', 'is-success', 'is-warning');
+    if (config.variant === 'error') {
+        popupContent.classList.add('is-error');
+    } else if (config.variant === 'success') {
+        popupContent.classList.add('is-success');
+    } else if (config.variant === 'warning') {
+        popupContent.classList.add('is-warning');
+    }
+
+    actionsEl.innerHTML = '';
+
+    let cancelBtn = null;
+    if (allowCancel) {
+        cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button';
+        cancelBtn.className = 'action-popup-btn';
+        cancelBtn.textContent = config.cancelText || 'Cancel';
+        actionsEl.appendChild(cancelBtn);
+    }
+
+    const confirmBtn = document.createElement('button');
+    confirmBtn.type = 'button';
+    confirmBtn.className = 'action-popup-btn ' + (config.isDanger ? 'danger' : 'primary');
+    confirmBtn.textContent = config.confirmText || 'OK';
+    actionsEl.appendChild(confirmBtn);
+
+    popup.classList.remove('hidden');
+    popup.setAttribute('aria-hidden', 'false');
+
+    return new Promise((resolve) => {
+        let finished = false;
+
+        function cleanup() {
+            document.removeEventListener('keydown', onKeyDown);
+            popup.removeEventListener('click', onPopupClick);
+            closeBtn.removeEventListener('click', onCancel);
+            if (cancelBtn) {
+                cancelBtn.removeEventListener('click', onCancel);
+            }
+            confirmBtn.removeEventListener('click', onConfirm);
+        }
+
+        function finish(value) {
+            if (finished) {
+                return;
+            }
+
+            finished = true;
+            cleanup();
+            popup.classList.add('hidden');
+            popup.setAttribute('aria-hidden', 'true');
+            resolve(value);
+        }
+
+        function onCancel() {
+            finish(false);
+        }
+
+        function onConfirm() {
+            finish(true);
+        }
+
+        function onPopupClick(event) {
+            if (event.target && event.target.hasAttribute('data-action-popup-close')) {
+                onCancel();
+            }
+        }
+
+        function onKeyDown(event) {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                onCancel();
+            }
+        }
+
+        document.addEventListener('keydown', onKeyDown);
+        popup.addEventListener('click', onPopupClick);
+        closeBtn.addEventListener('click', onCancel);
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', onCancel);
+        }
+        confirmBtn.addEventListener('click', onConfirm);
+
+        window.setTimeout(() => {
+            confirmBtn.focus();
+        }, 0);
+    });
+}
+
+function showInfoPopup(message, title) {
+    return showActionPopup({
+        title: title || 'Notice',
+        message: message,
+        confirmText: 'OK'
+    });
+}
+
+function showErrorPopup(message, title) {
+    return showActionPopup({
+        title: title || 'Error',
+        message: message,
+        confirmText: 'Close',
+        variant: 'error'
+    });
+}
+
+function showConfirmPopup(message, options) {
+    const opts = options || {};
+    return showActionPopup({
+        title: opts.title || 'Please Confirm',
+        message: message,
+        confirmText: opts.confirmText || 'Confirm',
+        cancelText: opts.cancelText || 'Cancel',
+        showCancel: true,
+        variant: opts.variant || 'warning',
+        isDanger: Boolean(opts.isDanger)
+    });
+}
+
 function showSuccessPopup(message, details) {
     const popup = document.getElementById('successPopup');
     const titleEl = document.getElementById('successPopupTitle');
@@ -802,10 +1346,54 @@ function handleSuccessPopupClose() {
     window.location.reload();
 }
 
+function setupAdminBookingActions() {
+    if (!isAdminUser) {
+        return;
+    }
+
+    const bookingsTable = document.getElementById('bookingsTable');
+    if (!bookingsTable) {
+        return;
+    }
+
+    bookingsTable.addEventListener('click', function (event) {
+        const button = event.target.closest('button[data-booking-action]');
+        if (!button || !bookingsTable.contains(button) || button.disabled) {
+            return;
+        }
+
+        const action = button.getAttribute('data-booking-action');
+        const bookingId = Number(button.getAttribute('data-booking-id'));
+
+        if (!bookingId) {
+            return;
+        }
+
+        if (action === 'cancel') {
+            cancelBooking(bookingId);
+            return;
+        }
+
+        if (action === 'edit') {
+            openEditBookingModal(bookingId);
+            return;
+        }
+
+        if (action === 'delete') {
+            deleteBooking(bookingId);
+        }
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     const datePicker = document.getElementById('booking-date-picker');
     if (datePicker) {
         datePicker.addEventListener('change', validateAndLoadSlots);
+    }
+
+    const adminFacilityForm = document.getElementById('adminFacilityForm');
+    if (adminFacilityForm) {
+        adminFacilityForm.addEventListener('submit', submitAdminFacilityForm);
     }
 
     document.querySelectorAll('.filter-tab').forEach(tab => {
@@ -819,6 +1407,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const defaultFilter = isAdminUser ? 'all' : 'upcoming';
     setActiveFilter(defaultFilter);
     applyBookingsFilter(defaultFilter);
+    setupAdminBookingActions();
 
     document.addEventListener('click', function (event) {
         if (!event.target.closest('.facility-admin-controls')) {
@@ -827,9 +1416,31 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     document.addEventListener('click', function (event) {
-        if (event.target.classList.contains('facility-admin-item')) {
+        const actionButton = event.target.closest('.facility-admin-item');
+        if (actionButton) {
             event.preventDefault();
             closeAllFacilityAdminMenus();
+
+            const action = actionButton.getAttribute('data-facility-action');
+            const facilityId = Number(actionButton.getAttribute('data-facility-id'));
+
+            if (!action || !facilityId) {
+                return;
+            }
+
+            if (action === 'edit') {
+                openEditFacilityModal(facilityId);
+                return;
+            }
+
+            if (action === 'delete') {
+                deleteFacility(facilityId);
+                return;
+            }
+
+            if (action === 'toggle-availability') {
+                toggleFacilityAvailability(facilityId);
+            }
         }
     });
 });
