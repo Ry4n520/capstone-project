@@ -72,27 +72,75 @@ $week_offset = (int) (($requested_week_start->getTimestamp() - $current_week_sta
 $days_of_week = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
 try {
-    // Past weeks are hidden from normal timetable navigation.
+    // Past weeks are normally hidden, but when a user has no current/future
+    // timetable rows we allow historical weeks so the page is not blank.
     if ($requested_week_start < $current_week_start) {
-        $empty_response = [
-            'success' => true,
-            'user_id' => $user_id,
-            'user_role' => $role_name,
-            'week_offset' => $week_offset,
-            'week_start' => $week_start,
-            'week_end' => $week_end,
-            'is_released' => false,
-            'message' => 'Past weeks are hidden from timetable view.',
-            'timetable' => [],
-            'available_weeks' => [
-                'min_week' => null,
-                'max_week' => null
-            ]
-        ];
+        if ($role_name === 'student') {
+            $current_future_count_query = "
+                SELECT COUNT(*)
+                FROM timetables t
+                JOIN course_sections cs ON t.section_id = cs.section_id
+                JOIN enrollments e ON cs.section_id = e.section_id
+                WHERE e.student_id = :user_id
+                  AND e.status = 'active'
+                  AND t.status = 'released'
+                  AND t.week_start_date >= :current_week_start
+            ";
 
-        http_response_code(200);
-        echo json_encode($empty_response, JSON_PRETTY_PRINT);
-        exit;
+            $current_future_count_params = [
+                ':user_id' => $user_id,
+                ':current_week_start' => $current_week_start->format('Y-m-d')
+            ];
+        } elseif ($role_name === 'staff') {
+            $current_future_count_query = "
+                SELECT COUNT(*)
+                FROM timetables t
+                JOIN course_sections cs ON t.section_id = cs.section_id
+                WHERE cs.lecturer_id = :user_id
+                  AND t.week_start_date >= :current_week_start
+            ";
+
+            $current_future_count_params = [
+                ':user_id' => $user_id,
+                ':current_week_start' => $current_week_start->format('Y-m-d')
+            ];
+        } else {
+            $current_future_count_query = "
+                SELECT COUNT(*)
+                FROM timetables t
+                WHERE t.week_start_date >= :current_week_start
+            ";
+
+            $current_future_count_params = [
+                ':current_week_start' => $current_week_start->format('Y-m-d')
+            ];
+        }
+
+        $current_future_count_stmt = $pdo->prepare($current_future_count_query);
+        $current_future_count_stmt->execute($current_future_count_params);
+        $has_current_or_future_rows = ((int) $current_future_count_stmt->fetchColumn()) > 0;
+
+        if ($has_current_or_future_rows) {
+            $empty_response = [
+                'success' => true,
+                'user_id' => $user_id,
+                'user_role' => $role_name,
+                'week_offset' => $week_offset,
+                'week_start' => $week_start,
+                'week_end' => $week_end,
+                'is_released' => false,
+                'message' => 'Past weeks are hidden from timetable view.',
+                'timetable' => [],
+                'available_weeks' => [
+                    'min_week' => null,
+                    'max_week' => null
+                ]
+            ];
+
+            http_response_code(200);
+            echo json_encode($empty_response, JSON_PRETTY_PRINT);
+            exit;
+        }
     }
 
     if ($role_name === 'student') {

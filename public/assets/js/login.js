@@ -12,9 +12,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Form submission handler
     if (loginForm) {
         loginForm.addEventListener('submit', function(e) {
-            // Clear previous errors
-            const errorMessage = document.querySelector('.error-message');
-            
             // Validate email format
             if (!isValidEmail(emailInput.value)) {
                 e.preventDefault();

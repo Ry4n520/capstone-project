@@ -89,7 +89,37 @@ CREATE TABLE IF NOT EXISTS classrooms (
 );
 
 -- ===========================================
--- 7. Schedule_Request Table
+-- 7. Timetable Table
+-- Stores approved class schedules
+-- ===========================================
+CREATE TABLE IF NOT EXISTS timetables (
+    timetable_id INT AUTO_INCREMENT PRIMARY KEY,
+    section_id INT NOT NULL,
+    room_id INT NOT NULL,
+    month VARCHAR(20) NOT NULL,
+    week VARCHAR(50) NOT NULL,
+    week_start_date DATE NOT NULL,
+    week_end_date DATE NOT NULL,
+    day_of_week VARCHAR(20) NOT NULL,
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
+    session_code VARCHAR(50),
+    status VARCHAR(30) DEFAULT 'pending',
+    created_by INT,
+    released_at DATETIME,
+    CONSTRAINT fk_timetables_section
+        FOREIGN KEY (section_id) REFERENCES course_sections(section_id),
+    CONSTRAINT fk_timetables_room
+        FOREIGN KEY (room_id) REFERENCES classrooms(room_id),
+    CONSTRAINT fk_timetables_created_by
+        FOREIGN KEY (created_by) REFERENCES users(user_id),
+    INDEX idx_timetables_week_dates (week_start_date, week_end_date),
+    INDEX idx_timetables_status (status),
+    UNIQUE KEY uq_timetables_week_slot (section_id, week_start_date, day_of_week, start_time, end_time)
+);
+
+-- ===========================================
+-- 8. Schedule_Request Table
 -- Stores classroom schedule requests by lecturers
 -- ===========================================
 CREATE TABLE IF NOT EXISTS schedule_requests (
@@ -123,36 +153,6 @@ CREATE TABLE IF NOT EXISTS schedule_requests (
         FOREIGN KEY (approved_by) REFERENCES users(user_id),
     INDEX idx_schedule_requests_week (week_start_date, week_end_date),
     INDEX idx_schedule_requests_status (status)
-);
-
--- ===========================================
--- 8. Timetable Table
--- Stores approved class schedules
--- ===========================================
-CREATE TABLE IF NOT EXISTS timetables (
-    timetable_id INT AUTO_INCREMENT PRIMARY KEY,
-    section_id INT NOT NULL,
-    room_id INT NOT NULL,
-    month VARCHAR(20) NOT NULL,
-    week VARCHAR(50) NOT NULL,
-    week_start_date DATE NOT NULL,
-    week_end_date DATE NOT NULL,
-    day_of_week VARCHAR(20) NOT NULL,
-    start_time TIME NOT NULL,
-    end_time TIME NOT NULL,
-    session_code VARCHAR(50),
-    status VARCHAR(30) DEFAULT 'pending',
-    created_by INT,
-    released_at DATETIME,
-    CONSTRAINT fk_timetables_section
-        FOREIGN KEY (section_id) REFERENCES course_sections(section_id),
-    CONSTRAINT fk_timetables_room
-        FOREIGN KEY (room_id) REFERENCES classrooms(room_id),
-    CONSTRAINT fk_timetables_created_by
-        FOREIGN KEY (created_by) REFERENCES users(user_id),
-    INDEX idx_timetables_week_dates (week_start_date, week_end_date),
-    INDEX idx_timetables_status (status),
-    UNIQUE KEY uq_timetables_week_slot (section_id, week_start_date, day_of_week, start_time, end_time)
 );
 
 -- ===========================================
@@ -235,6 +235,19 @@ CREATE TABLE IF NOT EXISTS announcements (
 );
 
 -- ===========================================
+-- 14. Public Holidays Table
+-- Stores holiday dates used by booking and timetable checks
+-- ===========================================
+CREATE TABLE IF NOT EXISTS public_holidays (
+    holiday_id INT AUTO_INCREMENT PRIMARY KEY,
+    holiday_name VARCHAR(150) NOT NULL,
+    holiday_date DATE NOT NULL UNIQUE,
+    description TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_holiday_date (holiday_date)
+);
+
+-- ===========================================
 -- Seed Data
 -- ===========================================
 
@@ -244,6 +257,26 @@ INSERT INTO roles (role_name, role_description) VALUES
     ('student', 'Student user'),
     ('staff', 'Staff/Lecturer user')
 ON DUPLICATE KEY UPDATE role_description = VALUES(role_description);
+
+-- Insert Malaysian public holidays for 2026
+INSERT INTO public_holidays (holiday_name, holiday_date, description) VALUES
+    ('New Year''s Day', '2026-01-01', 'New Year'),
+    ('Federal Territory Day', '2026-02-01', 'Federal Territory Day'),
+    ('Chinese New Year', '2026-02-17', 'Chinese New Year Day 1'),
+    ('Chinese New Year', '2026-02-18', 'Chinese New Year Day 2'),
+    ('Labour Day', '2026-05-01', 'International Workers Day'),
+    ('Wesak Day', '2026-05-31', 'Buddha''s Birthday'),
+    ('Yang di-Pertuan Agong Birthday', '2026-06-06', 'King''s Birthday'),
+    ('Hari Raya Aidiladha', '2026-06-16', 'Feast of Sacrifice'),
+    ('Awal Muharram', '2026-07-07', 'Islamic New Year'),
+    ('National Day', '2026-08-31', 'Independence Day'),
+    ('Prophet Muhammad''s Birthday', '2026-09-15', 'Maulid Nabi'),
+    ('Malaysia Day', '2026-09-16', 'Malaysia Day'),
+    ('Deepavali', '2026-11-05', 'Festival of Lights'),
+    ('Christmas Day', '2026-12-25', 'Christmas')
+ON DUPLICATE KEY UPDATE
+    holiday_name = VALUES(holiday_name),
+    description = VALUES(description);
 
 -- Insert test users - Password: password123
 INSERT INTO users (name, email, password_hash, role_id, gender, phone)

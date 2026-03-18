@@ -103,6 +103,69 @@ try {
     $stmt->execute($params);
     $weeks = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+    // Fallback: if there are no current/future rows yet, expose historical weeks
+    // so users can still view the most recent timetable data.
+    if (empty($weeks)) {
+        if ($role_name === 'student') {
+            $fallback_query = "
+                SELECT
+                    t.week_start_date,
+                    t.week_end_date,
+                    'released' AS status
+                FROM timetables t
+                JOIN course_sections cs ON t.section_id = cs.section_id
+                JOIN enrollments e ON cs.section_id = e.section_id
+                WHERE e.student_id = :user_id
+                  AND e.status = 'active'
+                  AND t.status = 'released'
+                GROUP BY t.week_start_date, t.week_end_date
+                ORDER BY t.week_start_date ASC
+            ";
+
+            $fallback_params = [':user_id' => $user_id];
+        } elseif ($role_name === 'staff') {
+            $fallback_query = "
+                SELECT
+                    t.week_start_date,
+                    t.week_end_date,
+                    CASE
+                        WHEN SUM(t.status = 'pending') > 0 THEN 'pending'
+                        WHEN SUM(t.status = 'released') > 0 THEN 'released'
+                        WHEN SUM(t.status = 'cancelled') > 0 THEN 'cancelled'
+                        ELSE 'pending'
+                    END AS status
+                FROM timetables t
+                JOIN course_sections cs ON t.section_id = cs.section_id
+                WHERE cs.lecturer_id = :user_id
+                GROUP BY t.week_start_date, t.week_end_date
+                ORDER BY t.week_start_date ASC
+            ";
+
+            $fallback_params = [':user_id' => $user_id];
+        } else {
+            $fallback_query = "
+                SELECT
+                    t.week_start_date,
+                    t.week_end_date,
+                    CASE
+                        WHEN SUM(t.status = 'pending') > 0 THEN 'pending'
+                        WHEN SUM(t.status = 'released') > 0 THEN 'released'
+                        WHEN SUM(t.status = 'cancelled') > 0 THEN 'cancelled'
+                        ELSE 'pending'
+                    END AS status
+                FROM timetables t
+                GROUP BY t.week_start_date, t.week_end_date
+                ORDER BY t.week_start_date ASC
+            ";
+
+            $fallback_params = [];
+        }
+
+        $fallback_stmt = $pdo->prepare($fallback_query);
+        $fallback_stmt->execute($fallback_params);
+        $weeks = $fallback_stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
     http_response_code(200);
     echo json_encode([
         'success' => true,

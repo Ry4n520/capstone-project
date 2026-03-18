@@ -1,19 +1,20 @@
 /* Page Header */
 .page-header {
-    color: #2d3748;
+    color: #ffffff;
     margin-bottom: 2rem;
 }
 
 .page-header h1 {
+    color: #ffffff;
     font-size: 2rem;
     margin-bottom: 0.5rem;
     font-weight: 700;
 }
 
 .page-header p {
-    opacity: 0.8;
+    opacity: 1;
     font-size: 1rem;
-    color: #718096;
+    color: #ffffff;
 }
 
 /* Category Grid */
