@@ -11,6 +11,7 @@ let currentTimetableData = null;
 let currentConflicts    = new Set();
 let activeFilter        = 'all';
 let pendingRejectId     = null;
+let addFormOptions      = null;
 
 /* ── HELPERS ──────────────────────────────────────────────────── */
 
@@ -58,6 +59,174 @@ function getMondayIso() {
     today.setDate(today.getDate() + diff);
     today.setHours(0, 0, 0, 0);
     return toIso(today);
+}
+
+function mondayFromIso(isoStr) {
+    const d = new Date(isoStr + 'T00:00:00');
+    if (Number.isNaN(d.getTime())) {
+        return '';
+    }
+    const day = d.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    d.setDate(d.getDate() + diff);
+    d.setHours(0, 0, 0, 0);
+    return toIso(d);
+}
+
+function setAddTimetableError(message) {
+    const el = document.getElementById('addTimetableError');
+    if (!el) { return; }
+
+    if (message) {
+        el.textContent = message;
+        el.classList.remove('hidden');
+    } else {
+        el.textContent = '';
+        el.classList.add('hidden');
+    }
+}
+
+function renderSectionOptions(courseId) {
+    if (!addFormOptions) { return; }
+
+    const sectionSelect = document.getElementById('addSectionSelect');
+    const lecturerInput = document.getElementById('addLecturerInput');
+    if (!sectionSelect || !lecturerInput) { return; }
+
+    const selectedCourseId = Number(courseId || 0);
+    const sections = (addFormOptions.sections || []).filter(s => Number(s.course_id) === selectedCourseId);
+
+    sectionSelect.innerHTML = '';
+
+    if (sections.length === 0) {
+        sectionSelect.innerHTML = '<option value="">No sections available</option>';
+        lecturerInput.value = '';
+        return;
+    }
+
+    sections.forEach(sec => {
+        const option = document.createElement('option');
+        option.value = String(sec.section_id);
+        option.textContent = `${sec.section_code} - ${sec.course_name}`;
+        option.dataset.lecturerName = sec.lecturer_name || '';
+        sectionSelect.appendChild(option);
+    });
+
+    lecturerInput.value = sectionSelect.options[0].dataset.lecturerName || '';
+}
+
+function onAddCourseChange() {
+    const courseSelect = document.getElementById('addCourseSelect');
+    if (!courseSelect) { return; }
+    renderSectionOptions(courseSelect.value);
+}
+
+function onAddSectionChange() {
+    const sectionSelect = document.getElementById('addSectionSelect');
+    const lecturerInput = document.getElementById('addLecturerInput');
+    if (!sectionSelect || !lecturerInput) { return; }
+
+    const selected = sectionSelect.options[sectionSelect.selectedIndex];
+    lecturerInput.value = selected ? (selected.dataset.lecturerName || '') : '';
+}
+
+function populateAddModalOptions() {
+    if (!addFormOptions) { return; }
+
+    const courseSelect = document.getElementById('addCourseSelect');
+    const roomSelect = document.getElementById('addRoomSelect');
+    if (!courseSelect || !roomSelect) { return; }
+
+    const courses = addFormOptions.courses || [];
+    courseSelect.innerHTML = '';
+
+    if (courses.length === 0) {
+        courseSelect.innerHTML = '<option value="">No courses available</option>';
+    } else {
+        courses.forEach(course => {
+            const option = document.createElement('option');
+            option.value = String(course.course_id);
+            option.textContent = course.course_name;
+            courseSelect.appendChild(option);
+        });
+    }
+
+    roomSelect.innerHTML = '';
+    const rooms = addFormOptions.classrooms || [];
+
+    if (rooms.length === 0) {
+        roomSelect.innerHTML = '<option value="">No classrooms available</option>';
+    } else {
+        rooms.forEach(room => {
+            const option = document.createElement('option');
+            option.value = String(room.room_id);
+            const capacity = room.capacity != null ? ` - cap ${room.capacity}` : '';
+            option.textContent = `${room.room_name} (${room.building || 'Building N/A'})${capacity}`;
+            roomSelect.appendChild(option);
+        });
+    }
+
+    if (courses.length > 0) {
+        renderSectionOptions(courseSelect.value);
+    } else {
+        renderSectionOptions('');
+    }
+}
+
+async function ensureAddFormOptions() {
+    if (addFormOptions) {
+        return;
+    }
+
+    const resp = await fetch('api/get-timetable-form-options.php', {
+        credentials: 'same-origin'
+    });
+
+    if (!resp.ok) {
+        throw new Error('Failed to load form options (HTTP ' + resp.status + ').');
+    }
+
+    const data = await resp.json();
+    if (!data.success) {
+        throw new Error(data.error || 'Failed to load form options.');
+    }
+
+    addFormOptions = data;
+}
+
+async function openAddTimetableModal() {
+    setAddTimetableError('');
+
+    try {
+        await ensureAddFormOptions();
+    } catch (err) {
+        alert('Unable to open add form: ' + err.message);
+        return;
+    }
+
+    populateAddModalOptions();
+
+    const weekStartInput = document.getElementById('addWeekStartInput');
+    const daySelect = document.getElementById('addDaySelect');
+    const startInput = document.getElementById('addStartTimeInput');
+    const endInput = document.getElementById('addEndTimeInput');
+    const releaseCheck = document.getElementById('addReleaseNowCheck');
+
+    if (weekStartInput) {
+        const defaultWeek = currentWeekStart || getMondayIso();
+        weekStartInput.value = mondayFromIso(defaultWeek);
+    }
+    if (daySelect) { daySelect.value = 'Monday'; }
+    if (startInput) { startInput.value = '09:00'; }
+    if (endInput) { endInput.value = '10:30'; }
+    if (releaseCheck) { releaseCheck.checked = true; }
+
+    document.getElementById('addTimetableModal').classList.remove('hidden');
+}
+
+function closeAddTimetableModal() {
+    setAddTimetableError('');
+    document.getElementById('addTimetableModal').classList.add('hidden');
 }
 
 /* ── CONFLICT DETECTION ───────────────────────────────────────── */
@@ -301,6 +470,79 @@ async function generateNextWeek() {
     } finally {
         btn.disabled    = false;
         btn.textContent = '⚡ Generate Next Week';
+    }
+}
+
+async function submitAddTimetable() {
+    const courseSelect = document.getElementById('addCourseSelect');
+    const sectionSelect = document.getElementById('addSectionSelect');
+    const roomSelect = document.getElementById('addRoomSelect');
+    const weekStartInput = document.getElementById('addWeekStartInput');
+    const daySelect = document.getElementById('addDaySelect');
+    const startInput = document.getElementById('addStartTimeInput');
+    const endInput = document.getElementById('addEndTimeInput');
+    const releaseCheck = document.getElementById('addReleaseNowCheck');
+    const submitBtn = document.getElementById('addTimetableSubmitBtn');
+
+    setAddTimetableError('');
+
+    if (!courseSelect || !sectionSelect || !roomSelect || !weekStartInput || !daySelect || !startInput || !endInput || !releaseCheck || !submitBtn) {
+        alert('Form controls are missing. Please reload the page.');
+        return;
+    }
+
+    const sectionId = Number(sectionSelect.value || 0);
+    const roomId = Number(roomSelect.value || 0);
+    const dayOfWeek = daySelect.value;
+    const weekStartRaw = (weekStartInput.value || '').trim();
+    const weekStart = mondayFromIso(weekStartRaw);
+    const startTime = (startInput.value || '').trim();
+    const endTime = (endInput.value || '').trim();
+    const releaseNow = Boolean(releaseCheck.checked);
+
+    if (!sectionId || !roomId || !weekStart || !dayOfWeek || !startTime || !endTime) {
+        setAddTimetableError('Please fill in all required fields.');
+        return;
+    }
+
+    if (startTime >= endTime) {
+        setAddTimetableError('End time must be after start time.');
+        return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Adding…';
+
+    try {
+        const resp = await fetch('api/create-manual-timetable.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({
+                section_id: sectionId,
+                room_id: roomId,
+                week_start_date: weekStart,
+                day_of_week: dayOfWeek,
+                start_time: startTime,
+                end_time: endTime,
+                release_now: releaseNow
+            })
+        });
+
+        const data = await resp.json();
+        if (!data.success) {
+            setAddTimetableError(data.error || 'Failed to add timetable entry.');
+            return;
+        }
+
+        closeAddTimetableModal();
+        alert('Timetable class added successfully.');
+        await loadTimetable(data.week_start || weekStart);
+    } catch (err) {
+        setAddTimetableError('Error: ' + err.message);
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Add to Timetable';
     }
 }
 
@@ -614,6 +856,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('prevWeekBtn').addEventListener('click', prevWeek);
     document.getElementById('nextWeekBtn').addEventListener('click', nextWeek);
     document.getElementById('generateBtn').addEventListener('click', generateNextWeek);
+    document.getElementById('addTimetableBtn').addEventListener('click', openAddTimetableModal);
+    document.getElementById('addCourseSelect').addEventListener('change', onAddCourseChange);
+    document.getElementById('addSectionSelect').addEventListener('change', onAddSectionChange);
 
     initFilters();
 

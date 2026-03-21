@@ -68,6 +68,13 @@
     flex-wrap: wrap;
 }
 
+.cs-toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    flex-wrap: wrap;
+}
+
 .cs-nav-btn {
     padding: 0.55rem 1.1rem;
     background: white;
@@ -114,6 +121,10 @@
 
 .cs-btn-generate:hover   { opacity: 0.88; }
 .cs-btn-generate:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.cs-btn-add {
+    background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+}
 
 /* ── FILTER CHIPS ─────────────────────────────────────────────── */
 .cs-filter-row {
@@ -694,6 +705,10 @@
     margin: 1rem;
 }
 
+.cs-modal-wide {
+    max-width: 720px;
+}
+
 .cs-modal-header {
     display: flex;
     align-items: center;
@@ -757,6 +772,73 @@
     font-size: 0.8rem;
     color: #e53e3e;
     margin-top: 0.35rem;
+}
+
+.cs-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.8rem 1rem;
+}
+
+.cs-select,
+.cs-input {
+    width: 100%;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0.55rem 0.7rem;
+    font-size: 0.9rem;
+    font-family: inherit;
+    color: #2d3748;
+    box-sizing: border-box;
+    background: white;
+}
+
+.cs-select:focus,
+.cs-input:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.cs-input[readonly] {
+    background: #f7fafc;
+    color: #4a5568;
+}
+
+.cs-inline-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.88rem;
+    color: #4a5568;
+    margin-top: 0.95rem;
+}
+
+.cs-btn-confirm-add {
+    padding: 0.55rem 1.1rem;
+    background: #16a34a;
+    border: 1px solid #16a34a;
+    color: white;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: opacity 0.15s;
+}
+
+.cs-btn-confirm-add:hover {
+    opacity: 0.9;
+}
+
+.cs-btn-confirm-add:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+@media (max-width: 760px) {
+    .cs-form-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 .cs-input-error.hidden { display: none; }

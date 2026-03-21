@@ -78,7 +78,10 @@ $formatted_date   = $current_datetime->format('l, F d, Y');
                 <span id="weekDisplay" class="cs-week-label">Loading…</span>
                 <button id="nextWeekBtn" class="cs-nav-btn">Next Week →</button>
             </div>
-            <button id="generateBtn" class="cs-btn-generate">⚡ Generate Next Week</button>
+            <div class="cs-toolbar-actions">
+                <button id="addTimetableBtn" class="cs-btn-generate cs-btn-add">＋ Add Timetable Class</button>
+                <button id="generateBtn" class="cs-btn-generate">⚡ Generate Next Week</button>
+            </div>
         </div>
 
         <!-- Building filter chips -->
@@ -110,6 +113,72 @@ $formatted_date   = $current_datetime->format('l, F d, Y');
         </div>
 
     </div><!-- /.container -->
+
+    <!-- Add Timetable Modal -->
+    <div id="addTimetableModal" class="cs-modal-overlay hidden">
+        <div class="cs-modal-backdrop" onclick="closeAddTimetableModal()"></div>
+        <div class="cs-modal-dialog cs-modal-wide">
+            <div class="cs-modal-header">
+                <h3>Add New Timetable Class</h3>
+                <button class="cs-modal-close" onclick="closeAddTimetableModal()" aria-label="Close">&times;</button>
+            </div>
+            <div class="cs-modal-body">
+                <p class="cs-modal-desc">Choose course, section, lecturer, time, and venue. Released entries will be visible to students.</p>
+
+                <div class="cs-form-grid">
+                    <div>
+                        <label class="cs-field-label" for="addCourseSelect">Course <span style="color:#e53e3e">*</span></label>
+                        <select id="addCourseSelect" class="cs-select"></select>
+                    </div>
+                    <div>
+                        <label class="cs-field-label" for="addSectionSelect">Class / Section <span style="color:#e53e3e">*</span></label>
+                        <select id="addSectionSelect" class="cs-select"></select>
+                    </div>
+                    <div>
+                        <label class="cs-field-label" for="addLecturerInput">Lecturer</label>
+                        <input id="addLecturerInput" class="cs-input" type="text" readonly>
+                    </div>
+                    <div>
+                        <label class="cs-field-label" for="addRoomSelect">Classroom <span style="color:#e53e3e">*</span></label>
+                        <select id="addRoomSelect" class="cs-select"></select>
+                    </div>
+                    <div>
+                        <label class="cs-field-label" for="addWeekStartInput">Week Start Date (Monday) <span style="color:#e53e3e">*</span></label>
+                        <input id="addWeekStartInput" class="cs-input" type="date">
+                    </div>
+                    <div>
+                        <label class="cs-field-label" for="addDaySelect">Day <span style="color:#e53e3e">*</span></label>
+                        <select id="addDaySelect" class="cs-select">
+                            <option value="Monday">Monday</option>
+                            <option value="Tuesday">Tuesday</option>
+                            <option value="Wednesday">Wednesday</option>
+                            <option value="Thursday">Thursday</option>
+                            <option value="Friday">Friday</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="cs-field-label" for="addStartTimeInput">Start Time <span style="color:#e53e3e">*</span></label>
+                        <input id="addStartTimeInput" class="cs-input" type="time" step="300">
+                    </div>
+                    <div>
+                        <label class="cs-field-label" for="addEndTimeInput">End Time <span style="color:#e53e3e">*</span></label>
+                        <input id="addEndTimeInput" class="cs-input" type="time" step="300">
+                    </div>
+                </div>
+
+                <label class="cs-inline-check">
+                    <input id="addReleaseNowCheck" type="checkbox" checked>
+                    Release immediately (students can view this class)
+                </label>
+
+                <p class="cs-input-error hidden" id="addTimetableError"></p>
+            </div>
+            <div class="cs-modal-footer">
+                <button class="cs-btn-cancel" onclick="closeAddTimetableModal()">Cancel</button>
+                <button id="addTimetableSubmitBtn" class="cs-btn-confirm-add" onclick="submitAddTimetable()">Add to Timetable</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Reject Reason Modal -->
     <div id="rejectModal" class="cs-modal-overlay hidden">
