@@ -1,6 +1,6 @@
 <?php
 /**
- * Smart Campus Management System - Available Timetable Weeks API
+ * GPSchool Management System - Available Timetable Weeks API
  *
  * Returns weeks available for timetable navigation.
  * - Students: released weeks only (current + future), only for enrolled sections.

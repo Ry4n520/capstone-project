@@ -1,6 +1,6 @@
 <?php
 /**
- * Smart Campus Management System - Class Scheduling (Admin)
+ * GPSchool Management System - Class Scheduling (Admin)
  *
  * Admin-only page for managing weekly timetables and reviewing
  * schedule change requests from lecturers.
@@ -22,7 +22,7 @@ $formatted_date   = $current_datetime->format('l, F d, Y');
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Campus - Class Scheduling</title>
+    <title>GPSchool - Class Scheduling</title>
     <link rel="stylesheet" href="assets/css/header.css?v=<?php echo time(); ?>">
     <link rel="stylesheet" href="assets/css/homepage.css?v=<?php echo time(); ?>">
     <link rel="stylesheet" href="assets/css/class-scheduling.css?v=<?php echo time(); ?>">

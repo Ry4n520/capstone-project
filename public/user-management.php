@@ -1,6 +1,6 @@
 <?php
 /**
- * Smart Campus Management System - User Management
+ * GPSchool Management System - User Management
  *
  * Admin-only page for user management features.
  */
@@ -56,7 +56,7 @@ $total_users = count($users);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Campus - User Management</title>
+    <title>GPSchool - User Management</title>
     <link rel="stylesheet" href="assets/css/header.css?v=<?php echo time(); ?>">
     <link rel="stylesheet" href="assets/css/homepage.css?v=<?php echo time(); ?>">
     <link rel="stylesheet" href="assets/css/user-management.css?v=<?php echo time(); ?>">

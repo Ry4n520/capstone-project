@@ -1,4 +1,4 @@
-/* Smart Campus Management System - Database Schema */
+/* GPSchool Management System - Database Schema */
 /* Overhauled design with Course Sections, Class Sessions, and Schedule Requests */
 
 CREATE DATABASE IF NOT EXISTS capstone_db;

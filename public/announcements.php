@@ -1,6 +1,6 @@
 <?php
 /**
- * Smart Campus Management System - Announcements
+ * GPSchool Management System - Announcements
  * 
  * Displays all announcements with filtering options
  */
@@ -21,7 +21,7 @@ $is_admin_user = ($user_role === 'admin');
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Campus - Announcements</title>
+    <title>GPSchool - Announcements</title>
     <link rel="stylesheet" href="assets/css/header.css?v=<?php echo time(); ?>">
     <link rel="stylesheet" href="assets/css/homepage.css?v=<?php echo time(); ?>">
     <link rel="stylesheet" href="assets/css/announcements.css?v=<?php echo time(); ?>">

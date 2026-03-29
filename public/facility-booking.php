@@ -1,6 +1,6 @@
 <?php
 /**
- * Smart Campus Management System - Facility Booking
+ * GPSchool Management System - Facility Booking
  * 
  * Allows users to book campus facilities
  */
@@ -96,7 +96,7 @@ function booking_status_badge($status)
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Campus - Facility Booking</title>
+    <title>GPSchool - Facility Booking</title>
     <link rel="stylesheet" href="assets/css/header.css?v=<?php echo time(); ?>">
     <link rel="stylesheet" href="assets/css/homepage.css?v=<?php echo time(); ?>">
     <link rel="stylesheet" href="assets/css/facility-booking.css?v=<?php echo time(); ?>">

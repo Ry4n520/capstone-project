@@ -25,7 +25,7 @@ $nav_links = $is_admin_nav ? $admin_nav_links : $default_nav_links;
 <nav class="top-nav">
     <!-- Logo/Home -->
     <a href="homepage.php" class="logo-link">
-        <div class="logo">Smart Campus</div>
+        <div class="logo">GPSchool</div>
     </a>
 
     <!-- Center Navigation Links -->

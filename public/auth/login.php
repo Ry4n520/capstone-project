@@ -1,6 +1,6 @@
 <?php
 /**
- * Smart Campus - Login Page
+ * GPSchool - Login Page
  * 
  * Authenticates user against database
  * Sets session variables: user_id, role, name
@@ -84,13 +84,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Campus - Login</title>
+    <title>GPSchool - Login</title>
     <link rel="stylesheet" href="../assets/css/login.css">
 </head>
 <body>
     <div class="login-container">
         <div class="login-box">
-            <h1 class="login-title">🏫 Smart Campus</h1>
+            <h1 class="login-title">🏫 GPSchool</h1>
             <p class="login-subtitle">Management System</p>
 
             <?php if (!empty($error_message)): ?>
@@ -125,13 +125,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 <button type="submit" class="login-btn">Login</button>
             </form>
-
-            <div class="login-info">
-                <p><strong>Demo Credentials:</strong></p>
-                <p>Student: student@campus.edu / password123</p>
-                <p>Staff: staff@campus.edu / password123</p>
-                <p>Admin: admin@campus.edu / password123</p>
-            </div>
         </div>
     </div>
 

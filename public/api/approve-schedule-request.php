@@ -1,6 +1,6 @@
 <?php
 /**
- * Smart Campus Management System - Approve Schedule Request API
+ * GPSchool Management System - Approve Schedule Request API
  *
  * Admin actions:
  * - approve: apply request to the specific week timetable slot.

@@ -1,6 +1,6 @@
 <?php
 /**
- * Smart Campus Management System - Create Schedule Request API
+ * GPSchool Management System - Create Schedule Request API
  *
  * Lecturer request workflow:
  * 1) Lecturer submits section/date/time/room request.

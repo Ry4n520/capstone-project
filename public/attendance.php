@@ -1,6 +1,6 @@
 <?php
 /**
- * Smart Campus Management System - Attendance
+ * GPSchool Management System - Attendance
  *
  * Displays attendance based on user role
  */
@@ -609,7 +609,7 @@ if ($is_admin) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Campus - Attendance</title>
+    <title>GPSchool - Attendance</title>
     <link rel="stylesheet" href="assets/css/header.css?v=<?php echo time(); ?>">
     <link rel="stylesheet" href="assets/css/homepage.css?v=<?php echo time(); ?>">
     <link rel="stylesheet" href="assets/css/attendance.css?v=<?php echo time(); ?>">

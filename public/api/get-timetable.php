@@ -1,6 +1,6 @@
 <?php
 /**
- * Smart Campus Management System - Timetable API
+ * GPSchool Management System - Timetable API
  *
  * Week-release aware timetable endpoint.
  * - Students only see released weeks from current week onward.

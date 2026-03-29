@@ -1,6 +1,6 @@
 <?php
 /**
- * Smart Campus Management System - Profile
+ * GPSchool Management System - Profile
  * 
  * Displays user profile information
  */
@@ -20,7 +20,7 @@ $formatted_time = $current_datetime->format('g:i A');
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Campus - Profile</title>
+    <title>GPSchool - Profile</title>
     <link rel="stylesheet" href="assets/css/header.css?v=<?php echo time(); ?>">
     <link rel="stylesheet" href="assets/css/homepage.css?v=<?php echo time(); ?>">
     <link rel="stylesheet" href="assets/css/profile.css?v=<?php echo time(); ?>">

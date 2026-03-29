@@ -1,6 +1,6 @@
 <?php
 /**
- * Smart Campus Management System - Homepage
+ * GPSchool Management System - Homepage
  * 
  * Real-time dashboard with dynamic data display
  */
@@ -21,7 +21,7 @@ $is_admin = ($user_role === 'admin');
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Campus - Dashboard</title>
+    <title>GPSchool - Dashboard</title>
     <link rel="stylesheet" href="assets/css/header.css?v=<?php echo time(); ?>">
     <link rel="stylesheet" href="assets/css/homepage.css?v=<?php echo time(); ?>">
 </head>
