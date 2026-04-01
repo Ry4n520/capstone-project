@@ -438,6 +438,46 @@ function nextWeek() {
     if (currentWeekStart) { loadTimetable(addDays(currentWeekStart, 7)); }
 }
 
+async function releaseCurrentWeek() {
+    if (!currentWeekStart) { return; }
+
+    const btn = document.getElementById('releaseWeekBtn');
+    const confirmed = confirm('Release all timetable entries for this displayed week?');
+    if (!confirmed) { return; }
+
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Releasing…';
+    }
+
+    try {
+        const resp = await fetch('api/update-timetable-status.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({
+                action: 'release_week',
+                week_start_date: currentWeekStart
+            })
+        });
+        const data = await resp.json();
+
+        if (!data.success) {
+            throw new Error(data.error || 'Unable to release timetable week.');
+        }
+
+        alert('Released timetable for week of ' + isoToShort(currentWeekStart) + '.');
+        await loadTimetable(currentWeekStart);
+    } catch (err) {
+        alert('Error: ' + err.message);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = '🚀 Release This Week';
+        }
+    }
+}
+
 /* ── GENERATE NEXT WEEK ───────────────────────────────────────── */
 
 async function generateNextWeek() {
@@ -856,6 +896,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('prevWeekBtn').addEventListener('click', prevWeek);
     document.getElementById('nextWeekBtn').addEventListener('click', nextWeek);
     document.getElementById('generateBtn').addEventListener('click', generateNextWeek);
+    document.getElementById('releaseWeekBtn').addEventListener('click', releaseCurrentWeek);
     document.getElementById('addTimetableBtn').addEventListener('click', openAddTimetableModal);
     document.getElementById('addCourseSelect').addEventListener('change', onAddCourseChange);
     document.getElementById('addSectionSelect').addEventListener('change', onAddSectionChange);

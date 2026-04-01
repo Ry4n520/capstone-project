@@ -178,6 +178,62 @@ function renderWeekHeader(weekStart, weekEnd, isReleased) {
     const releaseText = isReleased ? 'Released' : 'Pending Release';
 
     document.getElementById('weekDisplay').textContent = `${weekText} (${releaseText})`;
+
+    const releaseWeekBtn = document.getElementById('releaseWeekBtn');
+    if (releaseWeekBtn && timetableConfig.isAdmin) {
+        releaseWeekBtn.disabled = Boolean(isReleased);
+        releaseWeekBtn.textContent = isReleased ? 'Week Released' : 'Release This Week';
+    }
+}
+
+async function releaseCurrentWeek() {
+    if (!timetableConfig.isAdmin || !currentWeekData || !currentWeekData.week_start) {
+        return;
+    }
+
+    const releaseWeekBtn = document.getElementById('releaseWeekBtn');
+    const weekStart = currentWeekData.week_start;
+
+    const confirmed = window.confirm('Release all timetable entries for this week?');
+    if (!confirmed) {
+        return;
+    }
+
+    if (releaseWeekBtn) {
+        releaseWeekBtn.disabled = true;
+    }
+
+    try {
+        const response = await fetch('api/update-timetable-status.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({
+                action: 'release_week',
+                week_start_date: weekStart
+            })
+        });
+
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || data.message || 'Failed to release week timetable.');
+        }
+
+        if (currentWeekIndex >= 0) {
+            await loadTimetableByIndex(currentWeekIndex);
+        }
+        if (timetableConfig.isAdmin) {
+            await fetchAvailableWeeks();
+            updateButtonStates();
+        }
+    } catch (error) {
+        alert(error.message || 'Unable to release week timetable.');
+        if (releaseWeekBtn) {
+            releaseWeekBtn.disabled = false;
+        }
+    }
 }
 
 function buildEmptyState(message) {
@@ -407,9 +463,15 @@ async function openScheduleRequestModal(timetableId) {
 async function submitScheduleRequest(event) {
     event.preventDefault();
 
+    const form = document.getElementById('scheduleRequestForm');
     const submitBtn = document.getElementById('submitScheduleRequestBtn');
     const selectedDate = document.getElementById('requestClassDate').value;
     const dateDetails = applyRequestDate(selectedDate);
+
+    if (!form) {
+        setRequestMessage('Schedule request form is unavailable. Please refresh and try again.', true);
+        return;
+    }
 
     if (!dateDetails) {
         setRequestMessage('Please select a valid class date from Monday to Friday.', true);
@@ -620,12 +682,14 @@ window.closeScheduleRequestModal = closeScheduleRequestModal;
 window.submitScheduleRequest = submitScheduleRequest;
 window.approveScheduleRequest = approveScheduleRequest;
 window.rejectScheduleRequest = rejectScheduleRequest;
+window.releaseCurrentWeek = releaseCurrentWeek;
 
 document.addEventListener('DOMContentLoaded', () => {
     const prevBtn = document.getElementById('prevWeekBtn');
     const nextBtn = document.getElementById('nextWeekBtn');
     const requestForm = document.getElementById('scheduleRequestForm');
     const classDateInput = document.getElementById('requestClassDate');
+    const releaseWeekBtn = document.getElementById('releaseWeekBtn');
 
     if (prevBtn) {
         prevBtn.addEventListener('click', () => {
@@ -657,6 +721,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             setRequestMessage('', false);
         });
+    }
+
+    if (releaseWeekBtn) {
+        releaseWeekBtn.addEventListener('click', releaseCurrentWeek);
     }
 
     initializeTimetable();

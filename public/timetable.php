@@ -44,6 +44,9 @@ $is_admin = ($_SESSION['role'] === 'admin');
             <button id="prevWeekBtn" class="btn">← Previous Week</button>
             <span id="weekDisplay"></span>
             <button id="nextWeekBtn" class="btn">Next Week →</button>
+            <?php if ($is_admin): ?>
+                <button id="releaseWeekBtn" class="btn btn-release-week" type="button">Release This Week</button>
+            <?php endif; ?>
         </div>
 
         <!-- Timetable Content -->

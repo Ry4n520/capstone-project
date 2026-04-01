@@ -234,6 +234,7 @@ try {
             JOIN users u ON cs.lecturer_id = u.user_id
             WHERE cs.lecturer_id = :user_id
               AND t.week_start_date = :week_start_date
+                            AND t.status = 'released'
             ORDER BY
                 FIELD(t.day_of_week, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'),
                 t.start_time

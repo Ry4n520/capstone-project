@@ -81,6 +81,7 @@ $formatted_date   = $current_datetime->format('l, F d, Y');
             <div class="cs-toolbar-actions">
                 <button id="addTimetableBtn" class="cs-btn-generate cs-btn-add">＋ Add Timetable Class</button>
                 <button id="generateBtn" class="cs-btn-generate">⚡ Generate Next Week</button>
+                <button id="releaseWeekBtn" class="cs-btn-generate cs-btn-release">🚀 Release This Week</button>
             </div>
         </div>
 

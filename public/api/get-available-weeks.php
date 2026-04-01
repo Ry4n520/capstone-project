@@ -55,16 +55,12 @@ try {
             SELECT
                 t.week_start_date,
                 t.week_end_date,
-                CASE
-                    WHEN SUM(t.status = 'pending') > 0 THEN 'pending'
-                    WHEN SUM(t.status = 'released') > 0 THEN 'released'
-                    WHEN SUM(t.status = 'cancelled') > 0 THEN 'cancelled'
-                    ELSE 'pending'
-                END AS status
+                'released' AS status
             FROM timetables t
             JOIN course_sections cs ON t.section_id = cs.section_id
             WHERE cs.lecturer_id = :user_id
               AND t.week_start_date >= :current_week_start
+              AND t.status = 'released'
             GROUP BY t.week_start_date, t.week_end_date
             ORDER BY t.week_start_date ASC
         ";
@@ -128,15 +124,11 @@ try {
                 SELECT
                     t.week_start_date,
                     t.week_end_date,
-                    CASE
-                        WHEN SUM(t.status = 'pending') > 0 THEN 'pending'
-                        WHEN SUM(t.status = 'released') > 0 THEN 'released'
-                        WHEN SUM(t.status = 'cancelled') > 0 THEN 'cancelled'
-                        ELSE 'pending'
-                    END AS status
+                    'released' AS status
                 FROM timetables t
                 JOIN course_sections cs ON t.section_id = cs.section_id
                 WHERE cs.lecturer_id = :user_id
+                  AND t.status = 'released'
                 GROUP BY t.week_start_date, t.week_end_date
                 ORDER BY t.week_start_date ASC
             ";

@@ -126,6 +126,10 @@
     background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
 }
 
+.cs-btn-release {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+}
+
 /* ── FILTER CHIPS ─────────────────────────────────────────────── */
 .cs-filter-row {
     display: flex;

@@ -4,6 +4,7 @@
  *
  * POST body (JSON):
  *   { "timetable_id": N, "action": "cancel" | "cancel_rest" | "delete" }
+ *   { "week_start_date": "YYYY-MM-DD", "action": "release_week" }
  *
  * Actions:
  *   cancel      — set this entry's status to 'cancelled'
@@ -38,16 +39,34 @@ if (!is_array($raw)) {
 }
 
 $timetable_id = isset($raw['timetable_id']) ? (int) $raw['timetable_id'] : 0;
+$week_start_date = isset($raw['week_start_date']) ? trim((string) $raw['week_start_date']) : '';
 $action       = isset($raw['action']) ? strtolower(trim((string) $raw['action'])) : '';
 
-if ($timetable_id <= 0 || !in_array($action, ['cancel', 'cancel_rest', 'delete'], true)) {
+if (!in_array($action, ['cancel', 'cancel_rest', 'delete', 'release_week'], true)) {
     http_response_code(400);
-    echo json_encode(['error' => 'Invalid timetable_id or action.']);
+    echo json_encode(['error' => 'Invalid action.']);
+    exit;
+}
+
+if (in_array($action, ['cancel', 'cancel_rest', 'delete'], true) && $timetable_id <= 0) {
+    http_response_code(400);
+    echo json_encode(['error' => 'Invalid timetable_id.']);
+    exit;
+}
+
+if ($action === 'release_week' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $week_start_date)) {
+    http_response_code(400);
+    echo json_encode(['error' => 'Invalid week_start_date. Expected format YYYY-MM-DD.']);
     exit;
 }
 
 try {
-    if ($action === 'delete') {
+    if ($action === 'release_week') {
+        $stmt = $pdo->prepare("UPDATE timetables SET status = 'released', released_at = NOW() WHERE week_start_date = :week_start_date");
+        $stmt->execute([':week_start_date' => $week_start_date]);
+        echo json_encode(['success' => true, 'updated' => $stmt->rowCount()]);
+
+    } elseif ($action === 'delete') {
         $stmt = $pdo->prepare('DELETE FROM timetables WHERE timetable_id = :id');
         $stmt->execute([':id' => $timetable_id]);
         echo json_encode(['success' => true, 'deleted' => $stmt->rowCount()]);
